@@ -22,7 +22,7 @@
  */
 
 /*
- * Board specific code for the Hitex LPC1850 Eval board
+ * Board specific code for the Keil MCB1800 board
  */
 
 #include <common.h>
@@ -242,6 +242,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * Pin configuration table for Hitex LPC1850 Eval, it is compatible to LPC4350.
+ * Note: This should be compatible with MCB1800.
  *
  * This table does not list all MCU pins that will be configured. See also
  * the code in `iomux_init()`.
@@ -326,6 +327,7 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	{{0x2, 6}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 	/* P2.2 = A11 - SDRAM,NOR */
 	{{0x2, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* TODO WARNING: MCB1800 UART0 TX is here, will this work? */
 	/* P2.0 = BA0 for SDRAM (aka A13) - SDRAM,NOR */
 	{{0x2, 0}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 	/* P6.8 = BA1 for SDRAM (aka A14) - SDRAM,NOR */

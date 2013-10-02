@@ -3273,6 +3273,9 @@ lpc4350-eval_config : unconfig
 
 lpc1850-eval_config : unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexm3 lpc1850-eval hitex lpc18xx
+	
+mcb1800_config : unconfig
+	@$(MKCONFIG) $(@:_config=) arm arm_cortexm3 mcb1800 keil lpc18xx
 
 m2s-som-1a_config \
 m2s-som_config :  unconfig
