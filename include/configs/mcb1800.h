@@ -29,7 +29,8 @@
 /*
  * Disable debug messages
  */
-#undef DEBUG
+//#undef DEBUG
+#define LED_HELLO_WORLD
 
 /*
  * This is an ARM Cortex-M3 CPU core
@@ -44,8 +45,10 @@
 /*
  * Add header to the U-Boot image to pass necessary information
  * to the Boot ROM bootloader.
+ * /!\ Needed for use in DFU
+ * /!\ ELF file does not contain header (if debugging)
  */
-#define CONFIG_LPC18XX_BOOTHEADER
+#undef CONFIG_LPC18XX_BOOTHEADER
 
 /*
  * Enable GPIO driver
@@ -115,31 +118,33 @@
  * No internal flash on the NXP LPC1850 MCU. Setting CONFIG_MEM_NVM_LEN to the
  * size of the contiguous region of internal SRAM at address 0x10000000.
  */
-#define CONFIG_MEM_NVM_BASE		0x00000000
+#define CONFIG_MEM_NVM_BASE		0x00000000 /* was 0 */
 #define CONFIG_MEM_NVM_LEN		(96 * 1024)
+
+#define CONFIG_LPC18xx_LOCAL_SRAM	0x10000000
 
 #define CONFIG_MEM_RAM_BASE		0x20000000
 #define CONFIG_MEM_RAM_LEN		(32 * 1024)
-#define CONFIG_MEM_RAM_BUF_LEN		(1 * 1024)
-#define CONFIG_MEM_MALLOC_LEN		(27 * 1024)
-#define CONFIG_MEM_STACK_LEN		(4 * 1024)
+#define CONFIG_MEM_RAM_BUF_LEN	(1 * 1024)
+#define CONFIG_MEM_MALLOC_LEN	(27 * 1024)
+#define CONFIG_MEM_STACK_LEN	(4 * 1024)
 
 /*
  * malloc() pool size
  */
-#define CONFIG_SYS_MALLOC_LEN		CONFIG_MEM_MALLOC_LEN
+#define CONFIG_SYS_MALLOC_LEN	CONFIG_MEM_MALLOC_LEN
 
 /*
  * Configuration of the external DRAM memory
  */
-#define CONFIG_NR_DRAM_BANKS		1
+#define CONFIG_NR_DRAM_BANKS	4
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
 #define CONFIG_SYS_RAM_BASE		0x28000000
 #define CONFIG_SYS_RAM_SIZE		(8 * 1024 * 1024)
 /*
  * Buffers for Ethernet DMA (cannot be in the internal System RAM)
  */
-#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
+//#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
 /*
  * Use the CPU_CLOCK/2 for EMC
  */
@@ -149,14 +154,14 @@
  * Configuration of the external Flash memory
  */
 /* Define this to enable NOR Flash support */
-#define CONFIG_SYS_FLASH_CS		0
+#undef CONFIG_SYS_FLASH_CS /* CS0 */
 
 #if defined(CONFIG_SYS_FLASH_CS)
 #define CONFIG_SYS_FLASH_CFG		0x81 /* 16 bit, Byte Lane enabled */
 #define CONFIG_SYS_FLASH_WE		(1 - 1)		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_OE		0		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_RD		(13 - 1)	/* 70ns at 180MHz */
-#define CONFIG_SYS_FLASH_PAGE		(13 - 1)	/* 70ns at 180MHz */
+#define CONFIG_SYS_FLASH_PAGE	(13 - 1)	/* 70ns at 180MHz */
 #define CONFIG_SYS_FLASH_WR		0x1f		/* Maximum */
 #define CONFIG_SYS_FLASH_TA		0x0f		/* Maximum */
 
@@ -164,12 +169,12 @@
 
 #define CONFIG_SYS_FLASH_CFI		1
 #define CONFIG_FLASH_CFI_DRIVER		1
-#define CONFIG_FLASH_CFI_LEGACY		1
-#define CONFIG_SYS_FLASH_LEGACY_2Mx16	1
+//#define CONFIG_FLASH_CFI_LEGACY		1
+//#define CONFIG_SYS_FLASH_LEGACY_2Mx16	1
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BANK1_BASE }
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
-#define CONFIG_SYS_MAX_FLASH_SECT	1024
+#define CONFIG_SYS_MAX_FLASH_SECT	1024 /* 31*64kB+1*32kB+1*16kB+2*8kB = 2MB */
 
 /*
  * Store env in flash.
@@ -193,10 +198,14 @@
  * Support booting U-Boot from NOR flash
  */
 /* U-Boot will reload itself from flash to be sure the whole image is in SRAM */
-#define CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
+#undef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
+
+#if defined(CONFIG_LPC18XX_BOOTHEADER)
 /* The image contents go immediately after the 16-byte header */
 #define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	16
-
+#else
+#define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	0
+#endif
 /*
  * Serial console configuration
  */
@@ -225,10 +234,10 @@
  * Pin configuration for UART
  */
 #define CONFIG_LPC18XX_UART_TX_IO_GROUP		0x2	/* P2 */
-#define CONFIG_LPC18XX_UART_TX_IO_PIN		0	/* P2.0 = USART0 TXD */
+#define CONFIG_LPC18XX_UART_TX_IO_PIN		0	/* P2.0 = USART0/3 TXD */
 #define CONFIG_LPC18XX_UART_TX_IO_FUNC		1
 #define CONFIG_LPC18XX_UART_RX_IO_GROUP		0x2	/* P2 */
-#define CONFIG_LPC18XX_UART_RX_IO_PIN		1	/* P2.1 = USART0 RXD */
+#define CONFIG_LPC18XX_UART_RX_IO_PIN		1	/* P2.1 = USART0/3 RXD */
 #define CONFIG_LPC18XX_UART_RX_IO_FUNC		1
 
 #define CONFIG_BAUDRATE			115200
@@ -237,9 +246,9 @@
 /*
  * Ethernet configuration
  */
-#define CONFIG_NET_MULTI
-#define CONFIG_LPC18XX_ETH
-#define CONFIG_LPC18XX_ETH_DIV_SEL	4	/* 150-250 MHz */
+//#define CONFIG_NET_MULTI
+//#define CONFIG_LPC18XX_ETH
+//#define CONFIG_LPC18XX_ETH_DIV_SEL	4	/* 150-250 MHz */
 
 /*
  * Ethernet RX buffers are malloced from the internal SRAM (more precisely,
@@ -248,14 +257,14 @@
  * which determines the number of ethernet RX buffers (number of frames which
  * may be received without processing until overflow happens).
  */
-#define CONFIG_SYS_RX_ETH_BUFFER	3
+//#define CONFIG_SYS_RX_ETH_BUFFER	3
 
-#define CONFIG_SYS_TX_ETH_BUFFER	3
+//#define CONFIG_SYS_TX_ETH_BUFFER	3
 
 /*
  * Console I/O buffer size
  */
-#define CONFIG_SYS_CBSIZE		256
+#define CONFIG_SYS_CBSIZE		128 /* FIXME CHANGE TO 256 */
 
 /*
  * Print buffer size
@@ -298,7 +307,7 @@
 #undef CONFIG_CMD_IMLS
 #undef CONFIG_CMD_LOADS
 #undef CONFIG_CMD_MISC
-#define CONFIG_CMD_NET	/* Obligatory for the Ethernet driver to build */
+#undef CONFIG_CMD_NET	/* Obligatory for the Ethernet driver to build */
 #undef CONFIG_CMD_NFS
 #undef CONFIG_CMD_SOURCE
 #undef CONFIG_CMD_XIMG
@@ -316,11 +325,11 @@
 /*
  * Auto-boot sequence configuration
  */
-#define CONFIG_BOOTDELAY		5
+#define CONFIG_BOOTDELAY		10
 #define CONFIG_ZERO_BOOTDELAY_CHECK
 #define CONFIG_HOSTNAME			mcb1800
 #define CONFIG_BOOTARGS			"lpc18xx_platform=keil-mcb1800 "\
-					"console=ttyS0,115200 panic=10"
+					"console=ttyS0,115200 panic=20"
 #define CONFIG_BOOTCOMMAND		"run flashboot"
 
 /*

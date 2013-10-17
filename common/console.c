@@ -369,6 +369,10 @@ void puts(const char *s)
 
 void printf(const char *fmt, ...)
 {
+#ifdef LED_HELLO_WORLD
+  putc(':');
+  putc(')');
+#endif
 	va_list args;
 	uint i;
 	char printbuffer[CONFIG_SYS_PBSIZE];

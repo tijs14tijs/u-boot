@@ -26,7 +26,7 @@
  */
 
 #include <common.h>
-#include <netdev.h>
+//#include <netdev.h>
 
 #include <asm/arch/lpc18xx_gpio.h>
 #include <asm/arch/lpc18xx_scu.h>
@@ -34,51 +34,63 @@
 #include <asm/arch/lpc18xx_ccu.h>
 
 /*
- * IS42S16400F SDRAM: 16-bit, 4 banks, 12 row bits, 8 column bits.
- * See table 364 "Address mapping" on page 417 in the LPC43xx User Manual.
+ * some #define in it that can be included directly in this file.
+ * See https://github.com/openxc/nxp-cdl/tree/master/LPC18xxLib/inc for more CMSIS headers.
  */
-#define LPC18XX_EMC_AM		0x05
+#include <asm/arch/lpc18xx_emc.h>
 
 /*
- * Timings for 90 MHz SDRAM clock and IS42S16400F-6TL memory chip
+ * MT48LC4M32B2 SDRAM: 32-bit, 4 banks, 12 row bits, 8 column bits.
+ * 1 0 010 10:(0x74): 128 Mb (4Mx32), 4 banks, row length = 12, column length = 8
+ * See table 364 "Address mapping" on page 417 in the LPC43xx User Manual.
+ */
+#define LPC18XX_EMC_AM		((EMC_SDRAM_WIDTH_32_BITS << 7) | (EMC_SDRAM_SIZE_128_MBITS << 9) |  (EMC_SDRAM_DATA_BUS_32_BITS << 14))
+
+/*
+ * Timings for 166 MHz SDRAM clock and MT48LC4M32B2 memory chip
+ * (copied from lpc4350_db1)
  */
 /* Active to read/write delay (RAS latency) */
-#define SDRAM_RAS		2	/* tRCD = 18ns */
+#define SDRAM_RAS		3	/* tRCD = 18ns */
 /* CAS latency (CL) */
-#define SDRAM_CAS		2	/* CL = 2 */
+#define SDRAM_CAS		3	/* CL = 2 */
 /* Command delayed strategy, using EMCCLKDELAY */
 #define SDRAM_RDCFG_RD		1
 /* Precharge command period (tRP) */
 #define SDRAM_T_RP		2	/* 18ns */
 /* Active to precharge command period (tRAS) */
-#define SDRAM_T_RAS		4	/* 42ns */
+#define SDRAM_T_RAS		5	/* 42ns */
 /* Self-refresh exit time (tSREX) */
-#define SDRAM_T_SREX		6	/* We set this to the same as tXSR */
+#define SDRAM_T_SREX	8	/* We set this to the same as tXSR */ /* NOT FOUND */
 /* Last-data-out to active command time (tAPR) */
-#define SDRAM_T_APR		6	/* Not found in the SDRAM datasheet */
+#define SDRAM_T_APR		1	/* Not found in the SDRAM datasheet */
 /* Data-in to active command (tDAL) */
-#define SDRAM_T_DAL		5	/* 5 cycles */
+#define SDRAM_T_DAL		5	/* 5 cycles */ /* NOT FOUND */
 /* Write recovery time (tWR) */
-#define SDRAM_T_WR		2	/* 2 cycles */
+#define SDRAM_T_WR		1	/* 2 cycles (1 CLK + 6ns) */
 /* Active to active command period (tRC) */
-#define SDRAM_T_RC		6	/* 60ns */
+#define SDRAM_T_RC		8	/* 60ns */
 /* Auto-refresh period and auto-refresh to active command period (tRFC) */
-#define SDRAM_T_RFC		6	/* 60ns */
+#define SDRAM_T_RFC		8	/* 60ns */ /* NOT FOUND */
 /* Exit self-refresh to active command time (tXSR) */
-#define SDRAM_T_XSR		6	/* 60ns */
+#define SDRAM_T_XSR		8	/* 70ns */
 /* Active bank A to active bank B latency (tRRD) */
-#define SDRAM_T_RRD		2	/* 12ns */
+#define SDRAM_T_RRD		1	/* 12ns */
 /* Load mode register to active command time (tMRD) */
-#define SDRAM_T_MRD		2	/* 2 cycles */
+#define SDRAM_T_MRD		1	/* 2 cycles */
 
 /*
  * Refresh timer.
  * Indicates the multiple of 16 CCLKs between SDRAM refresh cycles.
  */
 /* 87 = 64000000[64ms] / 4096[rows] / 11.11[ns] / 16; round down */
-#define SDRAM_REFRESH		87
+/* TODO I don't understand this one
+ * 64ms, 4,096-cycle refresh (15.6μs/row)
+ * So this should be 64000000/4096/15600[ns]/16 = 0.06260016??
+ */
+#define SDRAM_REFRESH		118 /* UNKNOWN */
 /* Only for initialization */
-#define SDRAM_REFRESH_FAST	1
+#define SDRAM_REFRESH_FAST	2 /* UNKNOWN */
 
 /*
  * EMC registers
@@ -109,22 +121,22 @@
 #define LPC_EMC_DYRDCFG_RD_BITS	0
 
 /*
- * The SDRAM chip (IS42S16400F) mode register.
- * See IS42S16400F datasheet, page 16.
+ * The SDRAM chip (MT48LC4M32B2) mode register.
+ * See MT48LC4M32B2 datasheet, page 13.
  */
 #define SDRAM_MODEREG_BL_BITS		0	/* Burst Length */
 #define SDRAM_MODEREG_CAS_BITS		4	/* CAS Latency */
 
 /*
- * See IS42S16400F mode register (IS42S16400F datasheet, page 16).
- * CAS3, Burst Length = 8.
+ * See MT48LC4M32B2 mode register (MT48LC4M32B2 datasheet, page 13).
+ * CAS3, Burst Length = 4.
  */
-#define SDRAM_MODEREG_BL		3	/* Burst Length code */
-#define SDRAM_MODEREG_CAS		2	/* CAS Latency */
+#define SDRAM_MODEREG_BL		2	/* Burst Length code */
+#define SDRAM_MODEREG_CAS		3	/* CAS Latency */
 
-#define SDRAM_MODEREG_VALUE \
-	((SDRAM_MODEREG_BL << SDRAM_MODEREG_BL_BITS) | \
+#define SDRAM_MODEREG_VALUE ((SDRAM_MODEREG_BL << SDRAM_MODEREG_BL_BITS) | \
 	(SDRAM_MODEREG_CAS << SDRAM_MODEREG_CAS_BITS))
+
 
 /*
  * SDRAM chip-specific options
@@ -135,16 +147,16 @@
  *
  * In the high-performance mode the shift should be the following:
  * 11 = 8 (column bits) + 2 (bank select bits) + 1 (16 bits)
- *    1. IS42S32800B SDRAM has 256 columns, therefore 8 bits are used
+ *    1. MT48LC4M32B2 SDRAM has 256 columns, therefore 8 bits are used
  *         for the column number.
  *    2. Bank select field has 2 bits (4 banks).
- *    3. `1` is log2(16/8), because the SDRAM chip is 16-bit, and its
+ *    3. `2` is log2(32/8), because the SDRAM chip is 32-bit, and its
  *        internal addresses do not have 1 least-significant bit of
  *        the AHB bus addresses.
  *
  * In the low-power mode this shift will be different.
  */
-#define LPC18XX_EMC_MODEREG_ADDR_SHIFT	11
+#define LPC18XX_EMC_MODEREG_ADDR_SHIFT	12
 
 /*
  * Dynamic Memory registers (per chip)
@@ -234,20 +246,18 @@ struct lpc_emc_regs {
 	struct lpc_emc_st_regs st[4];	/* 4 static memory devices */
 };
 
-#define LPC18XX_EMC_BASE		0x40005000
-#define LPC_EMC				((volatile struct lpc_emc_regs *) \
-					LPC18XX_EMC_BASE)
+#define LPC18XX_EMC_BASE	0x40005000
+#define LPC_EMC				((volatile struct lpc_emc_regs *) LPC18XX_EMC_BASE)
 
 DECLARE_GLOBAL_DATA_PTR;
 
 /*
- * Pin configuration table for Hitex LPC1850 Eval, it is compatible to LPC4350.
- * Note: This should be compatible with MCB1800.
+ * Pin configuration table for MCB1800.
  *
  * This table does not list all MCU pins that will be configured. See also
  * the code in `iomux_init()`.
  */
-static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
+static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	/*
 	 * Pin configuration for UART
 	 */
@@ -268,32 +278,19 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	{{0x1, 18}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
 	/* P1.20 = ENET_TXD1 */
 	{{0x1, 20}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
-	/* P9.4 = ENET_TXD2 */
-	{{0x9,  4}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* P9.5 = ENET_TXD3 */
-	{{0x9,  5}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
 	/* P0.1 = ENET_TX_EN */
 	{{0x0,  1}, LPC18XX_IOMUX_CONFIG(6, 0, 1, 0, 1, 1)},
 	/* P1.15 = ENET_RXD0 */
 	{{0x1, 15}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
 	/* P0.0 = ENET_RXD1 */
 	{{0x0,  0}, LPC18XX_IOMUX_CONFIG(2, 0, 1, 0, 1, 1)},
-	/* P9.3 = ENET_RXD2 */
-	{{0x9,  3}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* P9.2 = ENET_RXD3 */
-	{{0x9,  2}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* P9.0 = ENET_CRS */
-	{{0x9,  0}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* P9.1 = ENET_RX_ER */
-	{{0x9,  1}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* PC.0 = ENET_RX_CLK */
-	{{0xC,  0}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
-	/* PC.5 = ENET_TX_ER */
-	{{0xC,  5}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
-	/* P9.6 = ENET_COL */
-	{{0x9,  6}, LPC18XX_IOMUX_CONFIG(5, 0, 1, 0, 1, 1)},
-	/* P1.19 = ENET_TX_CLK */
-	{{0x1, 19}, LPC18XX_IOMUX_CONFIG(0, 0, 1, 0, 1, 1)},
+
+	/*
+	 * Pin does not exist
+	 */
+//	/* PC.5 = ENET_TX_ER */
+//	{{0xC,  5}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
+
 	/* P1.16 = ENET_RXDV */
 	{{0x1, 16}, LPC18XX_IOMUX_CONFIG(7, 0, 1, 0, 1, 1)},
 #endif /* CONFIG_LPC18XX_ETH */
@@ -305,6 +302,8 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	/* P1.6 = WE# - SDRAM,NOR */
 	{{0x1, 6}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 
+	/* P2.9 = A0 - SDRAM,NOR */
+	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 	/* P2.10 = A1 - SDRAM,NOR */
 	{{0x2, 10}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 	/* P2.11 = A2 - SDRAM,NOR */
@@ -327,7 +326,7 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	{{0x2, 6}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 	/* P2.2 = A11 - SDRAM,NOR */
 	{{0x2, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* TODO WARNING: MCB1800 UART0 TX is here, will this work? */
+
 	/* P2.0 = BA0 for SDRAM (aka A13) - SDRAM,NOR */
 	{{0x2, 0}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 	/* P6.8 = BA1 for SDRAM (aka A14) - SDRAM,NOR */
@@ -376,6 +375,7 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	 * the EMC_CLK function and enable the input buffer (EZI = 1)
 	 * in all four SFSCLKn registers in the SCU.
 	 */
+	/* (I Guess this is OK, but I do not understand why they did this.) */
 	/* Imaginary P-0x18.0 = CLK (CLK0) - SDRAM */
 	{{0x18, 0}, LPC18XX_IOMUX_EMC_CONFIG(0)},
 	/* Imaginary P-0x18.1 = CLK1 - SDRAM */
@@ -399,8 +399,47 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	/* P6.10 = DQM1 - SDRAM */
 	{{0x6, 10}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 
-	/* P2.9 = A0 - SDRAM */
-	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* 32 bits bus SDRAM on Keil Board */
+	/* PD.0 = DQM2 - SDRAM */
+	{{0xD, 0}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PE.13 = DQM3 - SDRAM */
+	{{0xE, 13}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+
+	/* Data D13..D31 */
+	/* PD.2 = D16 - SDRAM */
+	{{0xD, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.3 = D17 - SDRAM */
+	{{0xD, 3}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.4 = D18 - SDRAM */
+	{{0xD, 4}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.5 = D19 - SDRAM */
+	{{0xD, 5}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.6 = D20 - SDRAM */
+	{{0xD, 6}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.7 = D21 - SDRAM */
+	{{0xD, 7}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.8 = D22 - SDRAM */
+	{{0xD, 8}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PD.9 = D23 - SDRAM */
+	{{0xD, 9}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* PE.5 = D24 - SDRAM */
+	{{0xE, 5}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.6 = D25 - SDRAM */
+	{{0xE, 6}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.7 = D26 - SDRAM */
+	{{0xE, 7}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.8 = D27 - SDRAM */
+	{{0xE, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.9 = D28 - SDRAM */
+	{{0xE, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.10 = D29 - SDRAM */
+	{{0xE, 10}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.11 = D30 - SDRAM */
+	{{0xE, 11}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* PE.12 = D31 - SDRAM */
+	{{0xE, 12}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+
+
 #endif /* CONFIG_NR_DRAM_BANKS */
 
 #if defined(CONFIG_SYS_FLASH_CS)
@@ -409,12 +448,11 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	 */
 	/* P1.3 = OE# - NOR */
 	{{0x1, 3}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P1.4 = BLS0# - NOR */
-	{{0x1, 4}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P6.6 = BLS1# - NOR */
-	{{0x6, 6}, LPC18XX_IOMUX_EMC_CONFIG(1)},
 	/* P1.5 = CS0# - NOR */
 	{{0x1, 5}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+
+	/* RST# - NOR, but is not connected to MCU */
+
 	/* P2.1 = A12 - NOR */
 	{{0x2, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 	/* P6.7 = A15 - NOR */
@@ -434,6 +472,7 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 #endif /* CONFIG_SYS_FLASH_CS */
 };
 
+
 /*
  * Configure all necessary MCU pins
  */
@@ -443,7 +482,7 @@ static void iomux_init(void)
 	 * Configure GPIO pins using the `hitex_lpc4350_iomux[]` table
 	 */
 	lpc18xx_pin_config_table(
-		hitex_lpc4350_iomux, ARRAY_SIZE(hitex_lpc4350_iomux));
+		mcb1800_iomux, ARRAY_SIZE(mcb1800_iomux));
 }
 
 #ifdef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
@@ -507,7 +546,7 @@ static const struct lpc18xx_pin_config
 #define LPC18XX_BOOTSRC_EMC_32BIT	4
 #define LPC18XX_BOOTSRC_USB0		5
 #define LPC18XX_BOOTSRC_USB1		6
-#define LPC18XX_BOOTSRC_SPI		7
+#define LPC18XX_BOOTSRC_SPI			7
 #define LPC18XX_BOOTSRC_USART3		8
 
 /*
@@ -553,17 +592,6 @@ out:
 static const struct lpc18xx_pin_config
 	__attribute__((section(".lpc18xx_image_top_data")))
 	hitex_lpc4350_iomux_boot_norflash[] = {
-	/*
-	 * Reconfigure the boot pins, because we turned them into GPIO inputs
-	 */
-	/* P1.1 = A6 - SDRAM,NOR */
-	{{0x1, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P1.2 = A7 - SDRAM,NOR */
-	{{0x1, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P2.8 = A8 - SDRAM,NOR */
-	{{0x2, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P2.9 = A0 - SDRAM */
-	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 
 	/*
 	 * Configure the EMC pins required to access the first 128KBytes
@@ -576,14 +604,28 @@ static const struct lpc18xx_pin_config
 	{{0x6, 7}, LPC18XX_IOMUX_EMC_CONFIG(1)},
 	/* PD.16 = A16 */
 	{{0xD, 16}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+
+	/*
+	 * Reconfigure the boot pins, because we turned them into GPIO inputs
+	 */
+	/* P1.1 = A6 - SDRAM,NOR */
+	{{0x1, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* P1.2 = A7 - SDRAM,NOR */
+	{{0x1, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+	/* P2.8 = A8 - SDRAM,NOR */
+	{{0x2, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+	/* P2.9 = A0 - SDRAM */
+	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
+
 };
 
 static void __attribute__((section(".lpc18xx_image_top_text")))
 	norflash_bootstrap_iomux_init(void)
 {
-	lpc18xx_pin_config_table(
+	if(lpc18xx_pin_config_table(
 		hitex_lpc4350_iomux_boot_norflash,
-		ARRAY_SIZE(hitex_lpc4350_iomux_boot_norflash));
+		ARRAY_SIZE(hitex_lpc4350_iomux_boot_norflash)) != 0)
+		while (1);
 }
 
 /*
@@ -617,6 +659,10 @@ void __attribute__((section(".lpc18xx_image_top_text")))
 }
 #endif /* CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND */
 
+
+#define DELAYCYCLES(ns) (ns / ((1.0 / __EMCHZ) * 1E9))
+#define DELAYCYCLES_RAM(ns) (ns / ((1.0 / __EMCHZ_RAM) * 1E9))
+
 /*
  * Early hardware init.
  */
@@ -628,7 +674,9 @@ int board_init(void)
 	 * Set SDRAM clock output delay to ~3.5ns (0x7777),
 	 * the SDRAM chip does not work otherwise.
 	 */
-	LPC18XX_SCU->emcdelayclk = 0x7777;
+	//LPC18XX_SCU->emcdelayclk = 0x7777;
+	LPC18XX_SCU->emcdelayclk = ((CLK0_DELAY) |  (CLK0_DELAY << 4) |  (CLK0_DELAY << 8) |  (CLK0_DELAY << 12));
+
 
 	/*
 	 * Enable EMC
@@ -645,14 +693,29 @@ int board_init(void)
 
 #ifdef CONFIG_SYS_FLASH_CS
 	/* Set timing for flash */
-	st = &LPC_EMC->st[CONFIG_SYS_FLASH_CS];
+	/*st = &LPC_EMC->st[CONFIG_SYS_FLASH_CS];
 	st->cfg = CONFIG_SYS_FLASH_CFG;
 	st->we = CONFIG_SYS_FLASH_WE;
 	st->oe = CONFIG_SYS_FLASH_OE;
 	st->rd = CONFIG_SYS_FLASH_RD;
 	st->page  = CONFIG_SYS_FLASH_PAGE;
 	st->wr = CONFIG_SYS_FLASH_WR;
+	st->ta = CONFIG_SYS_FLASH_TA;*/
+
+	/* Set timing for flash */
+	st = &LPC_EMC->st[CONFIG_SYS_FLASH_CS];
+	st->rd = DELAYCYCLES(70)+1;
+	st->page  = DELAYCYCLES(70)+1;
+	// 	LPC_EMC->emcctrl = 0x00000001;
+	st->cfg = CONFIG_SYS_FLASH_CFG;
+	st->oe = DELAYCYCLES(35)+1;
+
+	/* not configured in demo, useless? */
+	st->we = CONFIG_SYS_FLASH_WE;
+	st->wr = CONFIG_SYS_FLASH_WR;
 	st->ta = CONFIG_SYS_FLASH_TA;
+
+
 #endif
 	return 0;
 }
@@ -770,8 +833,7 @@ int dram_init(void)
 	/*
 	 * Enable DRAM buffer
 	 */
-	dy->cfg = (LPC18XX_EMC_AM << LPC_EMC_DYCFG_AM_BITS) |
-		LPC_EMC_DYCFG_B_MSK;
+	dy->cfg = (LPC18XX_EMC_AM << LPC_EMC_DYCFG_AM_BITS) | LPC_EMC_DYCFG_B_MSK;
 
 	/*
 	 * Fill in global info with description of DRAM configuration
@@ -796,9 +858,9 @@ int board_eth_init(bd_t *bis)
 ulong board_flash_get_legacy (ulong base, int banknum, flash_info_t *info)
 {
 	if (banknum == 0) {	/* non-CFI flash */
-		info->portwidth = FLASH_CFI_16BIT;
-		info->chipwidth = FLASH_CFI_BY16;
-		info->interface = FLASH_CFI_X16;
+		info->portwidth = FLASH_CFI_32BIT;
+		info->chipwidth = FLASH_CFI_BY32;
+		info->interface = FLASH_CFI_X16X32;
 		return 1;
 	} else
 		return 0;

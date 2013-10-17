@@ -46,8 +46,14 @@ PLATFORM_LDFLAGS =
 
 #########################################################################
 
-HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer \
+# TODO UNCOMMENT THIS
+ HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -Os -fomit-frame-pointer \
 		  $(HOSTCPPFLAGS)
+
+# TODO COMMENT THIS LINE:
+#HOSTCFLAGS	= -Wall -Wstrict-prototypes -fomit-frame-pointer \
+#		  $(HOSTCPPFLAGS)
+		  
 HOSTSTRIP	= strip
 
 #
@@ -109,6 +115,8 @@ RANLIB	= $(CROSS_COMPILE)RANLIB
 
 # Load generated board configuration
 sinclude $(OBJTREE)/include/autoconf.mk
+#CONFIG_MEM_NVM_BASE="0x10000000"
+#CONFIG_MEM_NVM_LEN="(96 * 1024)"
 
 ifdef	ARCH
 sinclude $(TOPDIR)/lib_$(ARCH)/config.mk	# include architecture dependend rules

@@ -25,6 +25,11 @@
 #include <asm/arch/lpc18xx_gpio.h>
 #endif
 
+#ifdef LED_HELLO_WORLD
+#include <asm/arch/lpc18xx_gpio.h>
+#endif
+
+
  /*
  * FIXME: move to the appropriate header
  */
@@ -108,6 +113,13 @@ void
 #endif
 	_start(void)
 {
+
+
+
+
+
+
+
 	/*
 	 * Depending on the config parameter, enable or disable the WDT.
 	 */
@@ -174,6 +186,36 @@ void __attribute__((naked, noreturn))
 
 void default_isr(void)
 {
+#ifdef LED_HELLO_WORLD
+	// GPIO_ID Gpio_LED[] = {
+	// {  6, 24},
+	// PIN_ID Pin_LED[] = {
+	// {  13, 10, (FUNC4 | PDN_ENABLE)},
+	struct lpc18xx_iomux_dsc pin = {13, 10}; /* GPIO[24] PD_10 */
+	struct lpc18xx_iomux_dsc gpio = {6, 24}; /* GPIO[24] */
+	//XScu_PinConfigure (13, 10, (0x4 | (1 << 3)));
+	// TODO
+	int result = lpc18xx_pin_config(&pin,
+				LPC18XX_IOMUX_CONFIG(4,0,0,0,0,0)); /* GPIO6[24] */
+
+
+
+	// result is not error
+	if(result == 0) {
+		// set direction output (1)
+		//XGPIO_SetDir (6, 24, 1);
+		lpc_gpio_dir(pin, 1);
+
+		//XGPIO_PinWrite (6, 24, 0);
+		lpc_gpio_set(gpio);
+		lpc_gpio_clear(gpio);
+	}
+
+	//LPC18XX_PIN(13,10) = 0 << 0;
+	//LPC18XX_GPIO_B(6,24) = 0 << 0;
+
+#endif
+
 	/*
 	 * Dump the registers
 	 */
