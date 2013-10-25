@@ -30,7 +30,7 @@
  * Disable debug messages
  */
 //#undef DEBUG
-#define LED_HELLO_WORLD
+//#define LED_HELLO_WORLD
 
 /*
  * This is an ARM Cortex-M3 CPU core
@@ -118,10 +118,8 @@
  * No internal flash on the NXP LPC1850 MCU. Setting CONFIG_MEM_NVM_LEN to the
  * size of the contiguous region of internal SRAM at address 0x10000000.
  */
-#define CONFIG_MEM_NVM_BASE		0x00000000 /* was 0 */
+#define CONFIG_MEM_NVM_BASE		0x14000000 /* was 0 */
 #define CONFIG_MEM_NVM_LEN		(96 * 1024)
-
-#define CONFIG_LPC18xx_LOCAL_SRAM	0x10000000
 
 #define CONFIG_MEM_RAM_BASE		0x20000000
 #define CONFIG_MEM_RAM_LEN		(32 * 1024)
@@ -264,7 +262,7 @@
 /*
  * Console I/O buffer size
  */
-#define CONFIG_SYS_CBSIZE		128 /* FIXME CHANGE TO 256 */
+#define CONFIG_SYS_CBSIZE		256
 
 /*
  * Print buffer size
