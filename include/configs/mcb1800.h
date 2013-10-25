@@ -142,7 +142,7 @@
 /*
  * Buffers for Ethernet DMA (cannot be in the internal System RAM)
  */
-//#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
+#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
 /*
  * Use the CPU_CLOCK/2 for EMC
  */
@@ -255,9 +255,9 @@
  * which determines the number of ethernet RX buffers (number of frames which
  * may be received without processing until overflow happens).
  */
-//#define CONFIG_SYS_RX_ETH_BUFFER	3
+#define CONFIG_SYS_RX_ETH_BUFFER	3
 
-//#define CONFIG_SYS_TX_ETH_BUFFER	3
+#define CONFIG_SYS_TX_ETH_BUFFER	3
 
 /*
  * Console I/O buffer size
@@ -296,8 +296,8 @@
  */
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_BOOTD
-#undef CONFIG_CMD_CONSOLE
-#undef CONFIG_CMD_ECHO
+#define CONFIG_CMD_CONSOLE
+#define CONFIG_CMD_ECHO
 #undef CONFIG_CMD_EDITENV
 #undef CONFIG_CMD_FPGA
 #undef CONFIG_CMD_IMI
@@ -328,7 +328,7 @@
 #define CONFIG_HOSTNAME			mcb1800
 #define CONFIG_BOOTARGS			"lpc18xx_platform=keil-mcb1800 "\
 					"console=ttyS0,115200 panic=20"
-#define CONFIG_BOOTCOMMAND		"run flashboot"
+#define CONFIG_BOOTCOMMAND		"run flashboot" /*"setenv nc 'setenv stdout nc;setenv stdin nc';saveenv;run nc"*/
 
 /*
  * This ensures that the board-specific misc_init_r() gets invoked.
@@ -341,7 +341,7 @@
 #define CONFIG_EXTRA_ENV_SETTINGS				\
 	"loadaddr=0x28000000\0"					\
 	"addip=setenv bootargs ${bootargs} ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:eth0:off\0"				\
-	"flashaddr=1C040000\0"					\
+	"flashaddr=14020000\0"					\
 	"flashboot=run addip;bootm ${flashaddr}\0"		\
 	"ethaddr=C0:B1:3C:88:88:91\0"				\
 	"ipaddr=172.17.4.217\0"					\

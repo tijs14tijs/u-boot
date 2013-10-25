@@ -295,7 +295,7 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	{{0x1, 16}, LPC18XX_IOMUX_CONFIG(7, 0, 1, 0, 1, 1)},
 #endif /* CONFIG_LPC18XX_ETH */
 
-#if defined(CONFIG_NR_DRAM_BANKS) || defined(CONFIG_SYS_FLASH_CS)
+#if defined(CONFIG_NR_DRAM_BANKS) && defined(CONFIG_SYS_FLASH_CS)
 	/*
 	 * EMC pins used for both the SDRAM and the NOR flash memory chips
 	 */
@@ -668,6 +668,11 @@ void __attribute__((section(".lpc18xx_image_top_text")))
  */
 int board_init(void)
 {
+  // USART0 BASE ADDR
+  //volatile (unsigned int *) 0x40081000;
+
+
+
 	volatile struct lpc_emc_st_regs *st;
 
 	/*
@@ -679,7 +684,7 @@ int board_init(void)
 
 
 	/*
-	 * Enable EMC
+	 * Enable External memory controller (0x00000001)
 	 */
 	LPC_EMC->emcctrl = LPC_EMC_CTRL_EN_MSK;
 	/*
