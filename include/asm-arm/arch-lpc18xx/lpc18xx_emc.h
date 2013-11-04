@@ -50,6 +50,9 @@ void EMCFlashInit(void);
 #define EMC_SDRAM_DATA_BUS_16_BITS	0
 #define EMC_SDRAM_DATA_BUS_32_BITS	1
 
+#define EMC_SDRAM_MODE_BANK_ROW_COLUMN 0
+#define EMC_SDRAM_MODE_ROW_BANK_COLUMN 1
+
 #define EMC_B_ENABLE 					(1 << 19)
 #define EMC_ENABLE 						(1 << 0)
 #define EMC_CE_ENABLE 					(1 << 0)
@@ -65,12 +68,25 @@ void EMCFlashInit(void);
 #define EMC_NOP 						(3)
 
 /* The Hitex LPC18xx Evaluation board contains a 64Mb SDRAM with a 16-bit data bus */
-#define SDRAM_SIZE_BYTES		(1024UL * 1024UL * 8UL)
-#define SDRAM_WIDTH				EMC_SDRAM_WIDTH_16_BITS
-#define SDRAM_SIZE_MBITS		EMC_SDRAM_SIZE_64_MBITS
-#define SDRAM_DATA_BUS_BITS		EMC_SDRAM_DATA_BUS_16_BITS			
-#define SDRAM_COL_ADDR_BITS		8		
-#define CLK0_DELAY     0
+//#define SDRAM_SIZE_BYTES		(1024UL * 1024UL * 8UL)
+//#define SDRAM_WIDTH				EMC_SDRAM_WIDTH_16_BITS
+//#define SDRAM_SIZE_MBITS		EMC_SDRAM_SIZE_64_MBITS
+//#define SDRAM_DATA_BUS_BITS		EMC_SDRAM_DATA_BUS_16_BITS
+//#define SDRAM_COL_ADDR_BITS		8
+//#define CLK0_DELAY     0
+
+/* 48LC4M32B2-7 on Keil MCB1800 board */
+/*
+ * MT48LC4M32B2 SDRAM: 32-bit, 4 banks, 12 row bits, 8 column bits.
+ * 1 0 010 10:(0x74): 128 Mb (4Mx32), 4 banks, row length = 12, column length = 8
+ * See table 364 "Address mapping" on page 417 in the LPC43xx User Manual.
+ */
+//#define SDRAM_SIZE_BYTES		(1024UL * 1024UL * 16UL)
+#define SDRAM_WIDTH			EMC_SDRAM_WIDTH_32_BITS
+#define SDRAM_SIZE_MBITS		EMC_SDRAM_SIZE_128_MBITS
+#define SDRAM_DATA_BUS_BITS		EMC_SDRAM_DATA_BUS_32_BITS
+#define SDRAM_COL_ADDR_BITS		8
+#define CLK0_DELAY              5
 
 void vEMC_InitSRDRAM(uint32_t u32BaseAddr, uint32_t u32Width, uint32_t u32Size, uint32_t u32DataBus, uint32_t u32ColAddrBits);
 void emc_WaitUS(volatile uint32_t us);

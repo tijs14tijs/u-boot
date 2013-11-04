@@ -33,6 +33,17 @@
 //#define LED_HELLO_WORLD
 
 /*
+ * UART0 or UART0_PF can be used, but UART0 can not be used with sdram.
+ * (undef to use UART0)
+ */
+#define USE_UART0_PF
+
+/*
+ * Load Mode Register command : Bank Row Column OR Row Bank Column ?
+ */
+#define BRC_MODEREG
+
+/*
  * This is an ARM Cortex-M3 CPU core
  */
 #define CONFIG_SYS_ARMCORTEXM3
@@ -138,7 +149,7 @@
 #define CONFIG_NR_DRAM_BANKS	4
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
 #define CONFIG_SYS_RAM_BASE		0x28000000
-#define CONFIG_SYS_RAM_SIZE		(8 * 1024 * 1024)
+#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL)
 /*
  * Buffers for Ethernet DMA (cannot be in the internal System RAM)
  */
@@ -216,27 +227,42 @@
  * little-endian mode.)
  */
 #define CONFIG_SYS_NS16550_REG_SIZE	(-4)
+
 /*
  * USART0 uses the BASE_UART0_CLK clock
  */
-#define CONFIG_SYS_NS16550_CLK		clock_get(CLOCK_UART0)
-#define CONFIG_CONS_INDEX		1
+#define CONFIG_CONS_INDEX					1
+#define CONFIG_SYS_NS16550_CLK				clock_get(CLOCK_UART0)
+#define CONFIG_SYS_NS16550_COM1				0x40081000
+
 /*
+ * Pin configuration for UART
+ *
  * USART0 registers base: 0x40081000
  * UART1 registers base:  0x40082000
  * USART2 registers base: 0x400C1000
  * USART3 registers base: 0x400C2000
+ *
+ * USE_UART0_PF: UART0 or UART0_PF can be used,
+ * The UART0 pins (P2_0 and P2_1) are also used by the external address bus,
+ * so when UART0 is active, no sdram and flash communication is possible.
  */
-#define CONFIG_SYS_NS16550_COM1		0x40081000
-/*
- * Pin configuration for UART
- */
-#define CONFIG_LPC18XX_UART_TX_IO_GROUP		0x2	/* P2 */
-#define CONFIG_LPC18XX_UART_TX_IO_PIN		0	/* P2.0 = USART0/3 TXD */
-#define CONFIG_LPC18XX_UART_TX_IO_FUNC		1
-#define CONFIG_LPC18XX_UART_RX_IO_GROUP		0x2	/* P2 */
-#define CONFIG_LPC18XX_UART_RX_IO_PIN		1	/* P2.1 = USART0/3 RXD */
-#define CONFIG_LPC18XX_UART_RX_IO_FUNC		1
+#if defined(USE_UART0_PF)
+	#define CONFIG_LPC18XX_UART_TX_IO_GROUP		0xF	/* PF */
+	#define CONFIG_LPC18XX_UART_TX_IO_PIN		10	/* PF.10 = USART0 TXD */
+	#define CONFIG_LPC18XX_UART_TX_IO_FUNC		1
+	#define CONFIG_LPC18XX_UART_RX_IO_GROUP		0xF	/* PF */
+	#define CONFIG_LPC18XX_UART_RX_IO_PIN		11	/* PF.11 = USART0 RXD */
+	#define CONFIG_LPC18XX_UART_RX_IO_FUNC		1
+#else
+	#define CONFIG_LPC18XX_UART_TX_IO_GROUP		0x2	/* P2 */
+	#define CONFIG_LPC18XX_UART_TX_IO_PIN		0	/* P2.0 = USART0 TXD */
+	#define CONFIG_LPC18XX_UART_TX_IO_FUNC		1
+	#define CONFIG_LPC18XX_UART_RX_IO_GROUP		0x2	/* P2 */
+	#define CONFIG_LPC18XX_UART_RX_IO_PIN		1	/* P2.1 = USART0 RXD */
+	#define CONFIG_LPC18XX_UART_RX_IO_FUNC		1
+#endif
+
 
 #define CONFIG_BAUDRATE			115200
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }

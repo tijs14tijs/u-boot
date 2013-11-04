@@ -44,8 +44,13 @@
  * 1 0 010 10:(0x74): 128 Mb (4Mx32), 4 banks, row length = 12, column length = 8
  * See table 364 "Address mapping" on page 417 in the LPC43xx User Manual.
  */
-#define LPC18XX_EMC_AM		((EMC_SDRAM_WIDTH_32_BITS << 7) | (EMC_SDRAM_SIZE_128_MBITS << 9) |  (EMC_SDRAM_DATA_BUS_32_BITS << 14))
-
+#ifdef BRC_MODEREG
+#define LPC18XX_EMC_AM		((EMC_SDRAM_WIDTH_32_BITS << 7) | (EMC_SDRAM_SIZE_128_MBITS << 9) |\
+							(EMC_SDRAM_MODE_BANK_ROW_COLUMN << 12) |  (EMC_SDRAM_DATA_BUS_32_BITS << 14))
+#else
+#define LPC18XX_EMC_AM		((EMC_SDRAM_WIDTH_32_BITS << 7) | (EMC_SDRAM_SIZE_128_MBITS << 9) |\
+							(EMC_SDRAM_MODE_ROW_BANK_COLUMN << 12) |  (EMC_SDRAM_DATA_BUS_32_BITS << 14))
+#endif
 /*
  * Timings for 166 MHz SDRAM clock and MT48LC4M32B2 memory chip
  * (copied from lpc4350_db1)
@@ -88,9 +93,9 @@
  * 64ms, 4,096-cycle refresh (15.6μs/row)
  * So this should be 64000000/4096/15600[ns]/16 = 0.06260016??
  */
-#define SDRAM_REFRESH		118 /* UNKNOWN */
+#define SDRAM_REFRESH		118
 /* Only for initialization */
-#define SDRAM_REFRESH_FAST	2 /* UNKNOWN */
+#define SDRAM_REFRESH_FAST	1
 
 /*
  * EMC registers
@@ -295,7 +300,7 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	{{0x1, 16}, LPC18XX_IOMUX_CONFIG(7, 0, 1, 0, 1, 1)},
 #endif /* CONFIG_LPC18XX_ETH */
 
-#if defined(CONFIG_NR_DRAM_BANKS) && defined(CONFIG_SYS_FLASH_CS)
+#if defined(CONFIG_NR_DRAM_BANKS) || defined(CONFIG_SYS_FLASH_CS)
 	/*
 	 * EMC pins used for both the SDRAM and the NOR flash memory chips
 	 */
@@ -327,8 +332,11 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	/* P2.2 = A11 - SDRAM,NOR */
 	{{0x2, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
 
+	// BA0 is used for SDRAM/UART0.
+#if defined(USE_UART0_PF)
 	/* P2.0 = BA0 for SDRAM (aka A13) - SDRAM,NOR */
 	{{0x2, 0}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+#endif
 	/* P6.8 = BA1 for SDRAM (aka A14) - SDRAM,NOR */
 	{{0x6, 8}, LPC18XX_IOMUX_EMC_CONFIG(1)},
 
@@ -453,8 +461,10 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 
 	/* RST# - NOR, but is not connected to MCU */
 
+#if defined(USE_UART0_PF)
 	/* P2.1 = A12 - NOR */
 	{{0x2, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
+#endif
 	/* P6.7 = A15 - NOR */
 	{{0x6, 7}, LPC18XX_IOMUX_EMC_CONFIG(1)},
 	/* PD.15 = A17 - NOR */
@@ -481,8 +491,8 @@ static void iomux_init(void)
 	/*
 	 * Configure GPIO pins using the `hitex_lpc4350_iomux[]` table
 	 */
-	lpc18xx_pin_config_table(
-		mcb1800_iomux, ARRAY_SIZE(mcb1800_iomux));
+	while(lpc18xx_pin_config_table(
+		mcb1800_iomux, ARRAY_SIZE(mcb1800_iomux)) != 0);
 }
 
 #ifdef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
@@ -668,11 +678,6 @@ void __attribute__((section(".lpc18xx_image_top_text")))
  */
 int board_init(void)
 {
-  // USART0 BASE ADDR
-  //volatile (unsigned int *) 0x40081000;
-
-
-
 	volatile struct lpc_emc_st_regs *st;
 
 	/*
@@ -771,10 +776,14 @@ int dram_init(void)
 
 	dy = &LPC_EMC->dy[CONFIG_SYS_RAM_CS];
 
+   /* Initialize EMC to interface with SDRAM */
+	LPC_EMC->emcctrl = 0x00000001;   /* Enable the external memory controller */
+	LPC_EMC->emccfg = 0;
+
 	/*
 	 * Address mapping
 	 */
-	dy->cfg = (LPC18XX_EMC_AM << LPC_EMC_DYCFG_AM_BITS);
+	dy->cfg = LPC18XX_EMC_AM;
 
 	/*
 	 * Configure DRAM timing
@@ -785,17 +794,17 @@ int dram_init(void)
 	LPC_EMC->dy_rdcfg =
 		(SDRAM_RDCFG_RD << LPC_EMC_DYRDCFG_RD_BITS);
 
-	LPC_EMC->dy_trp  = SDRAM_T_RP - 1;
-	LPC_EMC->dy_tras = SDRAM_T_RAS - 1;
-	LPC_EMC->dy_srex = SDRAM_T_SREX - 1;
-	LPC_EMC->dy_apr  = SDRAM_T_APR - 1;
+	LPC_EMC->dy_trp  = SDRAM_T_RP;
+	LPC_EMC->dy_tras = SDRAM_T_RAS;
+	LPC_EMC->dy_srex = SDRAM_T_SREX;
+	LPC_EMC->dy_apr  = SDRAM_T_APR;
 	LPC_EMC->dy_dal  = SDRAM_T_DAL;
-	LPC_EMC->dy_wr   = SDRAM_T_WR - 1;
-	LPC_EMC->dy_rc   = SDRAM_T_RC - 1;
-	LPC_EMC->dy_rfc  = SDRAM_T_RFC - 1;
-	LPC_EMC->dy_xsr  = SDRAM_T_XSR - 1;
-	LPC_EMC->dy_rrd  = SDRAM_T_RRD - 1;
-	LPC_EMC->dy_mrd  = SDRAM_T_MRD - 1;
+	LPC_EMC->dy_wr   = SDRAM_T_WR;
+	LPC_EMC->dy_rc   = SDRAM_T_RC;
+	LPC_EMC->dy_rfc  = SDRAM_T_RFC;
+	LPC_EMC->dy_xsr  = SDRAM_T_XSR;
+	LPC_EMC->dy_rrd  = SDRAM_T_RRD;
+	LPC_EMC->dy_mrd  = SDRAM_T_MRD;
 	mdelay(100);
 
 	/*
@@ -804,7 +813,7 @@ int dram_init(void)
 	LPC_EMC->dy_ctrl =
 		LPC_EMC_DYCTRL_CE_MSK | LPC_EMC_DYCTRL_CS_MSK |
 		(LPC_EMC_DYCTRL_I_NOP << LPC_EMC_DYCTRL_I_BITS);
-	mdelay(200);
+	mdelay(100);
 
 	/*
 	 * Pre-charge all with fast refresh
@@ -813,6 +822,7 @@ int dram_init(void)
 		LPC_EMC_DYCTRL_CE_MSK | LPC_EMC_DYCTRL_CS_MSK |
 		(LPC_EMC_DYCTRL_I_PALL << LPC_EMC_DYCTRL_I_BITS);
 	LPC_EMC->dy_rfsh = SDRAM_REFRESH_FAST;
+
 	mdelay(1);
 
 	/*
@@ -820,14 +830,18 @@ int dram_init(void)
 	 */
 	LPC_EMC->dy_rfsh = SDRAM_REFRESH;
 
+	mdelay(100);
+
 	/*
 	 * Load mode register
 	 */
 	LPC_EMC->dy_ctrl =
 		LPC_EMC_DYCTRL_CE_MSK | LPC_EMC_DYCTRL_CS_MSK |
 		(LPC_EMC_DYCTRL_I_MODE << LPC_EMC_DYCTRL_I_BITS);
-	tmp32 = *(volatile u32 *)(CONFIG_SYS_RAM_BASE |
-		(SDRAM_MODEREG_VALUE << LPC18XX_EMC_MODEREG_ADDR_SHIFT));
+
+	tmp32 = *((volatile u32 *)(CONFIG_SYS_RAM_BASE |
+			(SDRAM_MODEREG_VALUE << LPC18XX_EMC_MODEREG_ADDR_SHIFT)));
+	udelay(100);
 
 	/*
 	 * Normal mode
@@ -838,7 +852,7 @@ int dram_init(void)
 	/*
 	 * Enable DRAM buffer
 	 */
-	dy->cfg = (LPC18XX_EMC_AM << LPC_EMC_DYCFG_AM_BITS) | LPC_EMC_DYCFG_B_MSK;
+	dy->cfg |= (LPC18XX_EMC_AM << LPC_EMC_DYCFG_AM_BITS) | LPC_EMC_DYCFG_B_MSK;
 
 	/*
 	 * Fill in global info with description of DRAM configuration
