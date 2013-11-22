@@ -713,15 +713,14 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 			return 1;
 		}
 
-
 		if (iteration_limit && iterations > iteration_limit) {
 			printf("Tested %d iteration(s) with %lu errors.\n",
 				iterations-1, errs);
 			return errs != 0;
 		}
 
-		printf("Iteration: %6d\r", iterations);
-		PRINTF("\n");
+		printf("Iteration: %i\n", iterations);
+		//PRINTF("\n");
 		iterations++;
 
 		/*
@@ -745,6 +744,7 @@ int do_mem_mtest (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		for (j = 0; j < sizeof(bitpattern)/sizeof(bitpattern[0]); j++) {
 		    val = bitpattern[j];
 		    for(; val != 0; val <<= 1) {
+
 			*addr  = val;
 			*dummy  = ~val; /* clear the test data off of the bus */
 			readback = *addr;

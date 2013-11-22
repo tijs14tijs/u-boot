@@ -56,44 +56,50 @@
  * (copied from lpc4350_db1)
  */
 /* Active to read/write delay (RAS latency) */
-#define SDRAM_RAS		3	/* tRCD = 18ns */
+#define SDRAM_RAS		2	/* tRCD = 18ns */
 /* CAS latency (CL) */
-#define SDRAM_CAS		3	/* CL = 2 */
+#define SDRAM_CAS		3	/* CL = 3 (102Mhz is too high for CL 2) */
 /* Command delayed strategy, using EMCCLKDELAY */
-#define SDRAM_RDCFG_RD		1
+#define SDRAM_RDCFG_RD	1
 /* Precharge command period (tRP) */
 #define SDRAM_T_RP		2	/* 18ns */
 /* Active to precharge command period (tRAS) */
 #define SDRAM_T_RAS		5	/* 42ns */
 /* Self-refresh exit time (tSREX) */
-#define SDRAM_T_SREX	8	/* We set this to the same as tXSR */ /* NOT FOUND */
+#define SDRAM_T_SREX	8	/* We set this to the same as tXSR, NOT IN DATASHEET */
 /* Last-data-out to active command time (tAPR) */
-#define SDRAM_T_APR		1	/* Not found in the SDRAM datasheet */
+#define SDRAM_T_APR		1	/* NOT IN DATASHEET */
 /* Data-in to active command (tDAL) */
-#define SDRAM_T_DAL		5	/* 5 cycles */ /* NOT FOUND */
+#define SDRAM_T_DAL		4	/* 4 cycles */ /* 30ns */
 /* Write recovery time (tWR) */
-#define SDRAM_T_WR		1	/* 2 cycles (1 CLK + 6ns) */
+#define SDRAM_T_WR		2	/* 2 cycles (1 CLK + 6ns) */
 /* Active to active command period (tRC) */
-#define SDRAM_T_RC		8	/* 60ns */
+#define SDRAM_T_RC		7	/* 60ns */
 /* Auto-refresh period and auto-refresh to active command period (tRFC) */
-#define SDRAM_T_RFC		8	/* 60ns */ /* NOT FOUND */
+#define SDRAM_T_RFC		7	/* 60ns */
 /* Exit self-refresh to active command time (tXSR) */
 #define SDRAM_T_XSR		8	/* 70ns */
 /* Active bank A to active bank B latency (tRRD) */
-#define SDRAM_T_RRD		1	/* 12ns */
+#define SDRAM_T_RRD		2	/* 12ns */
 /* Load mode register to active command time (tMRD) */
-#define SDRAM_T_MRD		1	/* 2 cycles */
+#define SDRAM_T_MRD		2	/* 2 cycles, 12ns */
 
 /*
  * Refresh timer.
- * Indicates the multiple of 16 CCLKs between SDRAM refresh cycles.
+ * Indicates the multiple of 16 EMC_CCLKs between SDRAM refresh cycles.
+ * 
+ * see MT48LC4M32B2 datasheet
+ * 	front page: 64ms, 4,096-cycle refresh (15.6μs/row)
+ *
+ * see UM10430 (cortex M3 user manual)
+ * 	Table 349. Dynamic Memory Refresh Timer register
+ *
+ * if EMC clock = M4_CLK/2 = 102 Mhz:
+ *	CCLK = 1/0.102 = 9.80ns per clocktick
+ *
+ * 64000000[64ms] / 4096[rows] / (9.80[ns] * 16); round down = 99
  */
-/* 87 = 64000000[64ms] / 4096[rows] / 11.11[ns] / 16; round down */
-/* TODO I don't understand this one
- * 64ms, 4,096-cycle refresh (15.6μs/row)
- * So this should be 64000000/4096/15600[ns]/16 = 0.06260016??
- */
-#define SDRAM_REFRESH		118
+#define SDRAM_REFRESH		99
 /* Only for initialization */
 #define SDRAM_REFRESH_FAST	1
 
@@ -289,13 +295,6 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	{{0x1, 15}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
 	/* P0.0 = ENET_RXD1 */
 	{{0x0,  0}, LPC18XX_IOMUX_CONFIG(2, 0, 1, 0, 1, 1)},
-
-	/*
-	 * Pin does not exist
-	 */
-//	/* PC.5 = ENET_TX_ER */
-//	{{0xC,  5}, LPC18XX_IOMUX_CONFIG(3, 0, 1, 0, 1, 1)},
-
 	/* P1.16 = ENET_RXDV */
 	{{0x1, 16}, LPC18XX_IOMUX_CONFIG(7, 0, 1, 0, 1, 1)},
 #endif /* CONFIG_LPC18XX_ETH */
@@ -489,7 +488,7 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 static void iomux_init(void)
 {
 	/*
-	 * Configure GPIO pins using the `hitex_lpc4350_iomux[]` table
+	 * Configure GPIO pins using the `mcb1800_iomux[]` table
 	 */
 	while(lpc18xx_pin_config_table(
 		mcb1800_iomux, ARRAY_SIZE(mcb1800_iomux)) != 0);
@@ -703,16 +702,6 @@ int board_init(void)
 
 #ifdef CONFIG_SYS_FLASH_CS
 	/* Set timing for flash */
-	/*st = &LPC_EMC->st[CONFIG_SYS_FLASH_CS];
-	st->cfg = CONFIG_SYS_FLASH_CFG;
-	st->we = CONFIG_SYS_FLASH_WE;
-	st->oe = CONFIG_SYS_FLASH_OE;
-	st->rd = CONFIG_SYS_FLASH_RD;
-	st->page  = CONFIG_SYS_FLASH_PAGE;
-	st->wr = CONFIG_SYS_FLASH_WR;
-	st->ta = CONFIG_SYS_FLASH_TA;*/
-
-	/* Set timing for flash */
 	st = &LPC_EMC->st[CONFIG_SYS_FLASH_CS];
 	st->rd = DELAYCYCLES(70)+1;
 	st->page  = DELAYCYCLES(70)+1;
@@ -724,7 +713,6 @@ int board_init(void)
 	st->we = CONFIG_SYS_FLASH_WE;
 	st->wr = CONFIG_SYS_FLASH_WR;
 	st->ta = CONFIG_SYS_FLASH_TA;
-
 
 #endif
 	return 0;
@@ -756,6 +744,7 @@ int misc_init_r(void)
 
 /*
  * Setup external RAM.
+ * See Initialization on MT48LC4M32B2 datasheet (page 11).
  */
 int dram_init(void)
 {
@@ -767,9 +756,9 @@ int dram_init(void)
 	 * EMC_CLK_DIV = M4_CLK / 2
 	 */
 	LPC18XX_CCU1->clk_m4_emcdiv_cfg |=
-		LPC18XX_CCU1_CLK_RUN_MSK | LPC18XX_CCU1_CLK_EMCDIV_CFG_DIV2;
-	LPC18XX_CREG->creg6 |= LPC18XX_CREG_CREG6_EMCCLKSEL_MSK;
-	LPC18XX_CCU1->clk_m4_emc_cfg |= LPC18XX_CCU1_CLK_RUN_MSK;
+		LPC18XX_CCU1_CLK_RUN_MSK | LPC18XX_CCU1_CLK_EMCDIV_CFG_DIV2; // 65537
+	LPC18XX_CREG->creg6 |= LPC18XX_CREG_CREG6_EMCCLKSEL_MSK; // 65536
+	LPC18XX_CCU1->clk_m4_emc_cfg |= LPC18XX_CCU1_CLK_RUN_MSK; // 1
 #else
 #error EMC clock set to M4_CLK/1 is not supported
 #endif

@@ -125,6 +125,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 
 	cleanup_before_linux ();
 
+	udelay(1000000);
 	theKernel (0, machid, bd->bi_boot_params);
 	/* does not return */
 

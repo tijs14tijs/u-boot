@@ -29,7 +29,7 @@
 /*
  * Disable debug messages
  */
-//#undef DEBUG
+#define DEBUG
 //#define LED_HELLO_WORLD
 
 /*
@@ -126,11 +126,14 @@
  * Memory layout configuration
  */
 /*
- * No internal flash on the NXP LPC1850 MCU. Setting CONFIG_MEM_NVM_LEN to the
- * size of the contiguous region of internal SRAM at address 0x10000000.
+ * NVM_BASE is configured for boot from (debuggable) spifi flash.
  */
-#define CONFIG_MEM_NVM_BASE		0x14000000 /* was 0 */
+#define CONFIG_MEM_NVM_BASE		0x14000000
 #define CONFIG_MEM_NVM_LEN		(96 * 1024)
+/* This is only needed to copy memory to spifi */
+//#define CONFIG_SPIFI
+//#define CONFIG_SPIFI_BASE 0x14000000
+//#define CONFIG_SPIFI_SIZE 0x00400000
 
 #define CONFIG_MEM_RAM_BASE		0x20000000
 #define CONFIG_MEM_RAM_LEN		(32 * 1024)
@@ -148,12 +151,13 @@
  */
 #define CONFIG_NR_DRAM_BANKS	4
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
-#define CONFIG_SYS_RAM_BASE		0x28000000
-#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL)
-/*
- * Buffers for Ethernet DMA (cannot be in the internal System RAM)
- */
-#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
+#define CONFIG_SYS_RAM_BASE		0x28000004
+#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL - 4UL)
+
+///*
+// * Buffers for Ethernet DMA (cannot be in the internal System RAM)
+// */
+//#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
 /*
  * Use the CPU_CLOCK/2 for EMC
  */
@@ -205,6 +209,7 @@
 
 /*
  * Support booting U-Boot from NOR flash
+ * (not tested on MCB1800, because spifi is faster and cheaper to use)
  */
 /* U-Boot will reload itself from flash to be sure the whole image is in SRAM */
 #undef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
@@ -281,10 +286,11 @@
  * which determines the number of ethernet RX buffers (number of frames which
  * may be received without processing until overflow happens).
  */
-#define CONFIG_SYS_RX_ETH_BUFFER	3
-
-#define CONFIG_SYS_TX_ETH_BUFFER	3
-
+//#define CONFIG_SYS_RX_ETH_BUFFER	3
+//
+//#define CONFIG_SYS_TX_ETH_BUFFER	3
+//
+//
 /*
  * Console I/O buffer size
  */
@@ -323,8 +329,10 @@
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_BOOTD
 #define CONFIG_CMD_CONSOLE
-#define CONFIG_CMD_ECHO
-#undef CONFIG_CMD_EDITENV
+#undef CONFIG_CMD_DHCP
+#undef CONFIG_CMD_PING
+#undef CONFIG_CMD_ECHO
+#define CONFIG_CMD_EDITENV
 #undef CONFIG_CMD_FPGA
 #undef CONFIG_CMD_IMI
 #undef CONFIG_CMD_ITEST
@@ -336,6 +344,8 @@
 #undef CONFIG_CMD_SOURCE
 #undef CONFIG_CMD_XIMG
 
+#define CONFIG_SYS_ALT_MEMTEST
+#define CONFIG_SYS_MEMTEST_SCRATCH 0x2000f000
 /*
  * To save memory disable long help
  */
@@ -349,12 +359,12 @@
 /*
  * Auto-boot sequence configuration
  */
-#define CONFIG_BOOTDELAY		10
+#define CONFIG_BOOTDELAY		2
 #define CONFIG_ZERO_BOOTDELAY_CHECK
 #define CONFIG_HOSTNAME			mcb1800
 #define CONFIG_BOOTARGS			"lpc18xx_platform=keil-mcb1800 "\
-					"console=ttyS0,115200 panic=20"
-#define CONFIG_BOOTCOMMAND		"run flashboot" /*"setenv nc 'setenv stdout nc;setenv stdin nc';saveenv;run nc"*/
+					"console=ttyS0,115200 panic=20 earlyprintk=serial"
+#define CONFIG_BOOTCOMMAND		"run flashboot"
 
 /*
  * This ensures that the board-specific misc_init_r() gets invoked.
@@ -370,8 +380,8 @@
 	"flashaddr=14020000\0"					\
 	"flashboot=run addip;bootm ${flashaddr}\0"		\
 	"ethaddr=C0:B1:3C:88:88:91\0"				\
-	"ipaddr=172.17.4.217\0"					\
-	"serverip=172.17.0.1\0"					\
+	"ipaddr=192.168.0.101\0"					\
+	"serverip=192.168.0.100\0"					\
 	"image=lpc18xx/uImage\0"				\
 	"netboot=tftp ${image};run addip;bootm\0"		\
 	"update=tftp ${image};"					\
