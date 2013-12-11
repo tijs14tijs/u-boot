@@ -128,7 +128,7 @@
 /*
  * NVM_BASE is configured for boot from (debuggable) spifi flash.
  */
-#define CONFIG_MEM_NVM_BASE		0x00000000
+#define CONFIG_MEM_NVM_BASE			0x00000000
 #define CONFIG_MEM_NVM_LEN	        (96 * 1024)
 /* This is only needed to copy memory to spifi */
 //#define CONFIG_SPIFI
@@ -149,10 +149,10 @@
 /*
  * Configuration of the external DRAM memory
  */
-#define CONFIG_NR_DRAM_BANKS	        1
+#define CONFIG_NR_DRAM_BANKS	1
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
 #define CONFIG_SYS_RAM_BASE		0x28000000
-#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL)
+#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL - 1)
 
 ///*
 // * Buffers for Ethernet DMA (cannot be in the internal System RAM)
