@@ -60,13 +60,13 @@
 /* CAS latency (CL) */
 #define SDRAM_CAS		3	/* CL = 3 (102Mhz is too high for CL 2) */
 /* Command delayed strategy, using EMCCLKDELAY */
-#define SDRAM_RDCFG_RD	1
+#define SDRAM_RDCFG_RD	        1
 /* Precharge command period (tRP) */
 #define SDRAM_T_RP		2	/* 18ns */
 /* Active to precharge command period (tRAS) */
 #define SDRAM_T_RAS		5	/* 42ns */
 /* Self-refresh exit time (tSREX) */
-#define SDRAM_T_SREX	8	/* We set this to the same as tXSR, NOT IN DATASHEET */
+#define SDRAM_T_SREX	        8	/* We set this to the same as tXSR, NOT IN DATASHEET */
 /* Last-data-out to active command time (tAPR) */
 #define SDRAM_T_APR		1	/* NOT IN DATASHEET */
 /* Data-in to active command (tDAL) */
@@ -145,8 +145,9 @@
 #define SDRAM_MODEREG_BL		2	/* Burst Length code */
 #define SDRAM_MODEREG_CAS		3	/* CAS Latency */
 
-#define SDRAM_MODEREG_VALUE ((SDRAM_MODEREG_BL << SDRAM_MODEREG_BL_BITS) | \
-	(SDRAM_MODEREG_CAS << SDRAM_MODEREG_CAS_BITS))
+#define SDRAM_MODEREG_VALUE \
+  ((SDRAM_MODEREG_BL << SDRAM_MODEREG_BL_BITS) |	\
+   (SDRAM_MODEREG_CAS << SDRAM_MODEREG_CAS_BITS))
 
 
 /*
@@ -492,182 +493,12 @@ static void iomux_init(void)
 	 */
 	while(lpc18xx_pin_config_table(
 		mcb1800_iomux, ARRAY_SIZE(mcb1800_iomux)) != 0);
+
+	//	struct lpc18xx_iomux_dsc pin = {4, 12};
+	//lpc18xx_gpio_dir(pin, 1);
+	//lpc18xx_gpio_clear(pin);
+
 }
-
-#ifdef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
-
-extern char _mem_nvm_base;
-extern char _mem_nvm_size;
-
-/*
- * OTP (One-Time Programmable) memory area map
- */
-struct lpc18xx_otp_area {
-	u32 part_id;		/* Part ID */
-	u32 rsv0;
-	u32 uniq_id;		/* Unique ID */
-	u32 rsv1;
-	u32 key0[4];		/* AES key 0 */
-	u32 key1[4];		/* AES key 1 */
-	u32 ctrl;		/* Customer control data */
-	u32 usb_id;		/* USB ID */
-	u32 user1;		/* General purpose OTP memory */
-	u32 user2;		/* General purpose OTP memory */
-};
-
-/*
- * OTP memory base
- */
-#define LPC18XX_OTP_BASE		0x40045000
-#define LPC18XX_OTP			((volatile struct lpc18xx_otp_area *) \
-					LPC18XX_OTP_BASE)
-
-/*
- * Customer control data
- */
-/* Boot source selection in OTP */
-#define LPC18XX_OTP_CTRL_BOOTSRC_BITS	25
-#define LPC18XX_OTP_CTRL_BOOTSRC_MSK	(0xF << LPC18XX_OTP_CTRL_BOOTSRC_BITS)
-
-/*
- * Configuration of boot pins as GPIO inputs
- */
-static const struct lpc18xx_pin_config
-	__attribute__((section(".lpc18xx_image_top_data")))
-	hitex_lpc4350_iomux_boot_pins[] = {
-	/* P1.1 = GPIO0[8] - BOOT1 */
-	{{0x1, 1}, LPC18XX_IOMUX_GPIO_IN(0)},
-	/* P1.2 = GPIO0[9] - BOOT2 */
-	{{0x1, 2}, LPC18XX_IOMUX_GPIO_IN(0)},
-	/* P2.8 = GPIO5[7] - BOOT3 */
-	{{0x2, 8}, LPC18XX_IOMUX_GPIO_IN(4)},
-	/* P2.9 = GPIO1[10] - BOOT4 */
-	{{0x2, 9}, LPC18XX_IOMUX_GPIO_IN(0)},
-};
-
-/*
- * List of values returned by lpc18xx_get_boot_source()
- */
-#define LPC18XX_BOOTSRC_USART0		0
-#define LPC18XX_BOOTSRC_SPIFI		1
-#define LPC18XX_BOOTSRC_EMC_8BIT	2
-#define LPC18XX_BOOTSRC_EMC_16BIT	3
-#define LPC18XX_BOOTSRC_EMC_32BIT	4
-#define LPC18XX_BOOTSRC_USB0		5
-#define LPC18XX_BOOTSRC_USB1		6
-#define LPC18XX_BOOTSRC_SPI			7
-#define LPC18XX_BOOTSRC_USART3		8
-
-/*
- * Return identifier of the boot source used (from OTP or status of boot pins)
- */
-static int __attribute__((section(".lpc18xx_image_top_text")))
-	lpc18xx_get_boot_source(void)
-{
-	int rv;
-
-	/*
-	 * Try to find boot source selector in OTP
-	 */
-	rv = (LPC18XX_OTP->ctrl & LPC18XX_OTP_CTRL_BOOTSRC_MSK) >>
-		LPC18XX_OTP_CTRL_BOOTSRC_BITS;
-	if (rv > 0) {
-		rv--;
-		goto out;
-	}
-
-	/*
-	 * Check status of boot pins
-	 *
-	 * The pins need to be configured for GPIOs before reading their
-	 * statuses. The directions of GPIOs are set to inputs by default, no
-	 * need to reconfigure directions therefore.
-	 */
-	lpc18xx_pin_config_table(
-		hitex_lpc4350_iomux_boot_pins,
-		ARRAY_SIZE(hitex_lpc4350_iomux_boot_pins));
-	rv = (LPC18XX_GPIO_B(0, 8) << 0) |
-	     (LPC18XX_GPIO_B(0, 9) << 1) |
-	     (LPC18XX_GPIO_B(5, 7) << 2) |
-	     (LPC18XX_GPIO_B(1, 10) << 3);
-
-out:
-	return rv;
-}
-
-/*
- * Configure enough pins to access the first 128KBytes of the 16-bit NOR flash
- */
-static const struct lpc18xx_pin_config
-	__attribute__((section(".lpc18xx_image_top_data")))
-	hitex_lpc4350_iomux_boot_norflash[] = {
-
-	/*
-	 * Configure the EMC pins required to access the first 128KBytes
-	 * of NOR flash. The Boot ROM of LPC4350 forgets to configure these
-	 * pins.
-	 */
-	/* P6.8 = A14 */
-	{{0x6, 8}, LPC18XX_IOMUX_EMC_CONFIG(1)},
-	/* P6.7 = A15 */
-	{{0x6, 7}, LPC18XX_IOMUX_EMC_CONFIG(1)},
-	/* PD.16 = A16 */
-	{{0xD, 16}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-
-	/*
-	 * Reconfigure the boot pins, because we turned them into GPIO inputs
-	 */
-	/* P1.1 = A6 - SDRAM,NOR */
-	{{0x1, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P1.2 = A7 - SDRAM,NOR */
-	{{0x1, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P2.8 = A8 - SDRAM,NOR */
-	{{0x2, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P2.9 = A0 - SDRAM */
-	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-
-};
-
-static void __attribute__((section(".lpc18xx_image_top_text")))
-	norflash_bootstrap_iomux_init(void)
-{
-	if(lpc18xx_pin_config_table(
-		hitex_lpc4350_iomux_boot_norflash,
-		ARRAY_SIZE(hitex_lpc4350_iomux_boot_norflash)) != 0)
-		while (1);
-}
-
-/*
- * This function will be called very early on U-Boot initialization to reload
- * the whole U-Boot image from NOR flash if we use bootloading from NOR flash.
- */
-void __attribute__((section(".lpc18xx_image_top_text")))
-	lpc18xx_bootstrap_from_norflash(void)
-{
-	char *src, *dest, *src_end;
-
-	/*
-	 * Check if we boot from NOR flash
-	 */
-	if (lpc18xx_get_boot_source() == LPC18XX_BOOTSRC_EMC_16BIT) {
-		/*
-		 * Configure remaining pins required for NOR flash
-		 */
-		norflash_bootstrap_iomux_init();
-
-		/*
-		 * Copy U-Boot image from NOR flash to internal SRAM
-		 */
-		dest = &_mem_nvm_base;
-		src = (void *)(CONFIG_SYS_FLASH_BANK1_BASE +
-			CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET);
-		src_end = src + (u32)&_mem_nvm_size;
-		for (; src < src_end; src++, dest++)
-			*dest = *src;
-	}
-}
-#endif /* CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND */
-
 
 #define DELAYCYCLES(ns) (ns / ((1.0 / __EMCHZ) * 1E9))
 #define DELAYCYCLES_RAM(ns) (ns / ((1.0 / __EMCHZ_RAM) * 1E9))
@@ -680,11 +511,13 @@ int board_init(void)
 	volatile struct lpc_emc_st_regs *st;
 
 	/*
-	 * Set SDRAM clock output delay to ~3.5ns (0x7777),
+	 * Set SDRAM clock output delay to ~3.5ns (0x7777) // from lpc1850 u-boot, calculation is unknown.
 	 * the SDRAM chip does not work otherwise.
+	 * See LPC18xx user manual:
+	 * 	Table 182. EMC clock delay register (EMCDELAYCLK, address 0x4008 6D00) bit description
 	 */
-	//LPC18XX_SCU->emcdelayclk = 0x7777;
-	LPC18XX_SCU->emcdelayclk = ((CLK0_DELAY) |  (CLK0_DELAY << 4) |  (CLK0_DELAY << 8) |  (CLK0_DELAY << 12));
+	LPC18XX_SCU->emcdelayclk = 0x7777;
+	//LPC18XX_SCU->emcdelayclk = ((CLK0_DELAY) |  (CLK0_DELAY << 4) |  (CLK0_DELAY << 8) |  (CLK0_DELAY << 12));
 
 
 	/*

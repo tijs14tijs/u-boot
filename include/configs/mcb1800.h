@@ -95,7 +95,7 @@
 /*
  * This should be setup to the board specific rate for the external oscillator
  */
-#define CONFIG_LPC18XX_EXTOSC_RATE		12000000
+#define CONFIG_LPC18XX_EXTOSC_RATE	12000000
 
 /*
  * PLL1 multiplier value (1..256)
@@ -128,8 +128,8 @@
 /*
  * NVM_BASE is configured for boot from (debuggable) spifi flash.
  */
-#define CONFIG_MEM_NVM_BASE		0x14000000
-#define CONFIG_MEM_NVM_LEN		(96 * 1024)
+#define CONFIG_MEM_NVM_BASE		0x00000000
+#define CONFIG_MEM_NVM_LEN	        (96 * 1024)
 /* This is only needed to copy memory to spifi */
 //#define CONFIG_SPIFI
 //#define CONFIG_SPIFI_BASE 0x14000000
@@ -137,22 +137,22 @@
 
 #define CONFIG_MEM_RAM_BASE		0x20000000
 #define CONFIG_MEM_RAM_LEN		(32 * 1024)
-#define CONFIG_MEM_RAM_BUF_LEN	(1 * 1024)
-#define CONFIG_MEM_MALLOC_LEN	(27 * 1024)
-#define CONFIG_MEM_STACK_LEN	(4 * 1024)
+#define CONFIG_MEM_RAM_BUF_LEN	        (1 * 1024)
+#define CONFIG_MEM_MALLOC_LEN	        (27 * 1024)
+#define CONFIG_MEM_STACK_LEN	        (4 * 1024)
 
 /*
  * malloc() pool size
  */
-#define CONFIG_SYS_MALLOC_LEN	CONFIG_MEM_MALLOC_LEN
+#define CONFIG_SYS_MALLOC_LEN	        CONFIG_MEM_MALLOC_LEN
 
 /*
  * Configuration of the external DRAM memory
  */
-#define CONFIG_NR_DRAM_BANKS	4
+#define CONFIG_NR_DRAM_BANKS	        1
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
-#define CONFIG_SYS_RAM_BASE		0x28000004
-#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL - 4UL)
+#define CONFIG_SYS_RAM_BASE		0x28000000
+#define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL)
 
 ///*
 // * Buffers for Ethernet DMA (cannot be in the internal System RAM)
@@ -174,7 +174,7 @@
 #define CONFIG_SYS_FLASH_WE		(1 - 1)		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_OE		0		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_RD		(13 - 1)	/* 70ns at 180MHz */
-#define CONFIG_SYS_FLASH_PAGE	(13 - 1)	/* 70ns at 180MHz */
+#define CONFIG_SYS_FLASH_PAGE	        (13 - 1)	/* 70ns at 180MHz */
 #define CONFIG_SYS_FLASH_WR		0x1f		/* Maximum */
 #define CONFIG_SYS_FLASH_TA		0x0f		/* Maximum */
 
@@ -182,7 +182,7 @@
 
 #define CONFIG_SYS_FLASH_CFI		1
 #define CONFIG_FLASH_CFI_DRIVER		1
-//#define CONFIG_FLASH_CFI_LEGACY		1
+//#define CONFIG_FLASH_CFI_LEGACY	1
 //#define CONFIG_SYS_FLASH_LEGACY_2Mx16	1
 #define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BANK1_BASE }
@@ -211,8 +211,6 @@
  * Support booting U-Boot from NOR flash
  * (not tested on MCB1800, because spifi is faster and cheaper to use)
  */
-/* U-Boot will reload itself from flash to be sure the whole image is in SRAM */
-#undef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
 
 #if defined(CONFIG_LPC18XX_BOOTHEADER)
 /* The image contents go immediately after the 16-byte header */
@@ -223,22 +221,22 @@
 /*
  * Serial console configuration
  */
-#define CONFIG_SYS_NS16550		1
+#define CONFIG_SYS_NS16550		        1
 #undef CONFIG_NS16550_MIN_FUNCTIONS
-#define CONFIG_SYS_NS16550_SERIAL	1
+#define CONFIG_SYS_NS16550_SERIAL	        1
 /*
  * Registers are 32-bit. The negative value tells the ns16550 driver that
  * registers should be post-padded with zeroes (because the CPU is in
  * little-endian mode.)
  */
-#define CONFIG_SYS_NS16550_REG_SIZE	(-4)
+#define CONFIG_SYS_NS16550_REG_SIZE             (-4)
 
 /*
  * USART0 uses the BASE_UART0_CLK clock
  */
-#define CONFIG_CONS_INDEX					1
-#define CONFIG_SYS_NS16550_CLK				clock_get(CLOCK_UART0)
-#define CONFIG_SYS_NS16550_COM1				0x40081000
+#define CONFIG_CONS_INDEX			1
+#define CONFIG_SYS_NS16550_CLK			clock_get(CLOCK_UART0)
+#define CONFIG_SYS_NS16550_COM1			0x40081000
 
 /*
  * Pin configuration for UART
@@ -361,8 +359,8 @@
  */
 #define CONFIG_BOOTDELAY		2
 #define CONFIG_ZERO_BOOTDELAY_CHECK
-#define CONFIG_HOSTNAME			mcb1800
-#define CONFIG_BOOTARGS			"lpc18xx_platform=keil-mcb1800 "\
+#define CONFIG_HOSTNAME			lpc1850-eval
+#define CONFIG_BOOTARGS			"lpc18xx_platform=hitex-lpc1850 " \
 					"console=ttyS0,115200 panic=20 earlyprintk=serial"
 #define CONFIG_BOOTCOMMAND		"run flashboot"
 
@@ -376,14 +374,10 @@
  */
 #define CONFIG_EXTRA_ENV_SETTINGS				\
 	"loadaddr=0x28000000\0"					\
-	"addip=setenv bootargs ${bootargs} ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:eth0:off\0"				\
+	"addip=setenv bootargs ${bootargs}\0"			\
 	"flashaddr=14020000\0"					\
-	"flashboot=run addip;bootm ${flashaddr}\0"		\
-	"ethaddr=C0:B1:3C:88:88:91\0"				\
-	"ipaddr=192.168.0.101\0"					\
-	"serverip=192.168.0.100\0"					\
+	"flashboot=bootm ${flashaddr}\0"			\
 	"image=lpc18xx/uImage\0"				\
-	"netboot=tftp ${image};run addip;bootm\0"		\
 	"update=tftp ${image};"					\
 	"prot off ${flashaddr} +${filesize};"			\
 	"era ${flashaddr} +${filesize};"			\
