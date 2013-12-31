@@ -20,6 +20,7 @@
  */
 
 #include <common.h>
+
 #include "spifilib/spifilib.h"
 
 static SPIFIobj spifi_obj;
@@ -31,8 +32,11 @@ int spifi_initialize(void)
 
 	if (spifilib_flash_hdr->signature == SPIFILIB_SIG) {
 		spifilib_ram_hdr = spifilib_flash_hdr->link_addr;
+		printf("memcpy(0x%08x, 0x%08x, 0x%08x)\n", spifilib_flash_hdr->link_addr, spifilib_flash_hdr,
+				spifilib_flash_hdr->lib_size);
 		memcpy(spifilib_flash_hdr->link_addr, spifilib_flash_hdr,
 				spifilib_flash_hdr->lib_size);
+		printf("memcpy success!\n");
 		if ((ret = spifilib_ram_hdr->init_func(&spifi_obj, 10, S_MODE3, 25))) {
 			spifilib_ram_hdr = NULL;
 			printf("SPIFI lib init failed with code %i\n", ret);

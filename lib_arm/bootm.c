@@ -125,7 +125,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 
 	cleanup_before_linux ();
 
-	udelay(1000000);
+	udelay(50000000);
 	theKernel (0, machid, bd->bi_boot_params);
 	/* does not return */
 
@@ -143,6 +143,7 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *) bd->bi_boot_params;
+	printf ("bd addr: 0x%08x, params addr: 0x%08x\n", bd, params);
 
 	params->hdr.tag = ATAG_CORE;
 	params->hdr.size = tag_size (tag_core);

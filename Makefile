@@ -140,7 +140,7 @@ endif
 # The "tools" are needed early, so put this first
 # Don't include stuff already done in $(LIBS)
 SUBDIRS	= tools \
-	  examples/standalone \
+#	  examples/standalone \
 	  examples/api
 
 .PHONY : $(SUBDIRS)
@@ -3273,7 +3273,11 @@ lpc4350-eval_config : unconfig
 
 lpc1850-eval_config : unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexm3 lpc1850-eval hitex lpc18xx
-	
+
+lpc1857-eval_config : unconfig
+	@echo "LDSCRIPT:=$(SRCTREE)/board/hitex/lpc1857-eval/u-boot.lds" 			> $(obj)board/hitex/lpc1857-eval/config.tmp
+	@$(MKCONFIG) $(@:_config=) arm arm_cortexm3 lpc1857-eval hitex lpc18xx
+
 mcb1800_config : unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm_cortexm3 mcb1800 keil lpc18xx
 

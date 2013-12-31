@@ -39,11 +39,6 @@
 #define USE_UART0_PF
 
 /*
- * Load Mode Register command : Bank Row Column OR Row Bank Column ?
- */
-#define BRC_MODEREG
-
-/*
  * This is an ARM Cortex-M3 CPU core
  */
 #define CONFIG_SYS_ARMCORTEXM3
@@ -130,10 +125,9 @@
  */
 #define CONFIG_MEM_NVM_BASE			0x00000000
 #define CONFIG_MEM_NVM_LEN	        (96 * 1024)
-/* This is only needed to copy memory to spifi */
-//#define CONFIG_SPIFI
-//#define CONFIG_SPIFI_BASE 0x14000000
-//#define CONFIG_SPIFI_SIZE 0x00400000
+
+/* Uncomment the following line to enable the SPIFI interface */
+// #define CONFIG_SPIFI
 
 #define CONFIG_MEM_RAM_BASE		0x20000000
 #define CONFIG_MEM_RAM_LEN		(32 * 1024)
@@ -149,15 +143,17 @@
 /*
  * Configuration of the external DRAM memory
  */
+
 #define CONFIG_NR_DRAM_BANKS	1
 #define CONFIG_SYS_RAM_CS		0	/* 0 .. 3 */
 #define CONFIG_SYS_RAM_BASE		0x28000000
 #define CONFIG_SYS_RAM_SIZE		(16UL * 1024UL * 1024UL - 1)
 
-///*
-// * Buffers for Ethernet DMA (cannot be in the internal System RAM)
-// */
-//#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
+/*
+ * Buffers for Ethernet DMA (cannot be in the internal System RAM)
+ */
+#define CONFIG_MEM_ETH_DMA_BUF_BASE	0x10080000	/* Region of SRAM */
+
 /*
  * Use the CPU_CLOCK/2 for EMC
  */
@@ -167,33 +163,49 @@
  * Configuration of the external Flash memory
  */
 /* Define this to enable NOR Flash support */
-#undef CONFIG_SYS_FLASH_CS /* CS0 */
+#undef CONFIG_SYS_FLASH_CS  /* CS0 */
 
 #if defined(CONFIG_SYS_FLASH_CS)
-#define CONFIG_SYS_FLASH_CFG		0x81 /* 16 bit, Byte Lane enabled */
+#define CONFIG_SYS_FLASH_CFG	0x81 /* 16 bit, Byte Lane enabled */
 #define CONFIG_SYS_FLASH_WE		(1 - 1)		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_OE		0		/* Minimum is enough */
 #define CONFIG_SYS_FLASH_RD		(13 - 1)	/* 70ns at 180MHz */
-#define CONFIG_SYS_FLASH_PAGE	        (13 - 1)	/* 70ns at 180MHz */
+#define CONFIG_SYS_FLASH_PAGE	(13 - 1)	/* 70ns at 180MHz */
 #define CONFIG_SYS_FLASH_WR		0x1f		/* Maximum */
 #define CONFIG_SYS_FLASH_TA		0x0f		/* Maximum */
 
-#define CONFIG_SYS_FLASH_BANK1_BASE	0x1C000000 /* CS0 */
+#define CONFIG_SYS_FLASH_BANK1_BASE		0x1C000000 /* CS0 */
 
 #define CONFIG_SYS_FLASH_CFI		1
 #define CONFIG_FLASH_CFI_DRIVER		1
-//#define CONFIG_FLASH_CFI_LEGACY	1
-//#define CONFIG_SYS_FLASH_LEGACY_2Mx16	1
-#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
+#define CONFIG_FLASH_CFI_LEGACY		1
+#define CONFIG_SYS_FLASH_LEGACY_2Mx16	1
+#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_32BIT
 #define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BANK1_BASE }
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
-#define CONFIG_SYS_MAX_FLASH_SECT	1024 /* 31*64kB+1*32kB+1*16kB+2*8kB = 2MB */
+#define CONFIG_SYS_MAX_FLASH_SECT	1024
 
 /*
  * Store env in flash.
  */
 #define CONFIG_ENV_IS_IN_FLASH
+#define CONFIG_ENV_ADDR \
+	(CONFIG_SYS_FLASH_BANK1_BASE + 128 * 1024)
+#define CONFIG_ENV_OVERWRITE		1
+
+/*
+ * Support booting U-Boot from NOR flash
+ * (not tested on MCB1800, because SPIFI is faster and cheaper to use)
+ */
+/* U-Boot will reload itself from flash to be sure the whole image is in SRAM */
+#define CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
+/* The image contents go immediately after the 16-byte header */
+#define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	16
+
+#define CONFIG_LPC18xx_LOCAL_SRAM 0x10000000
+
 #else
+
 /*
  * Store env in memory only, if no flash.
  */
@@ -201,23 +213,51 @@
 #define CONFIG_SYS_NO_FLASH
 #endif
 
-#define CONFIG_ENV_SIZE			(4 * 1024)
+
+#ifdef CONFIG_SPIFI
+#define CONFIG_SPIFI_BASE		0x14000000
+#define CONFIG_SPIFI_SIZE		(16*1024*1024)
+
+#ifndef CONFIG_ENV_IS_IN_FLASH
+#define CONFIG_ENV_IS_IN_SPIFI
 #define CONFIG_ENV_ADDR \
-	(CONFIG_SYS_FLASH_BANK1_BASE + 128 * 1024)
-#define CONFIG_INFERNO			1
+	(CONFIG_SPIFI_BASE + 120 * 1024)
 #define CONFIG_ENV_OVERWRITE		1
+#endif
+#endif
+
+#define CONFIG_ENV_SIZE			(4 * 1024)
+
+
+/* Uncomment the following line to enable SPI */
+/* #define CONFIG_LPC_SPI */
+#ifdef CONFIG_LPC_SPI
+#ifdef CONFIG_SPIFI
+#error SPI cannot be used along with SPIFI
+#endif
+#define CONFIG_LPC_SPI_PINS {                                  \
+       {{0x3, 3}, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 0, 0)},     \
+       {{0x3, 6}, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1)},     \
+       {{0x3, 7}, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 0, 0)},     \
+       {{0x3, 8}, LPC18XX_IOMUX_CONFIG(4, 0, 0, 1, 0, 0)}      \
+}
+#define CONFIG_LPC_CS_GPIO {5, 11}
 
 /*
- * Support booting U-Boot from NOR flash
- * (not tested on MCB1800, because spifi is faster and cheaper to use)
+ * Configure SPI Flash
  */
 
-#if defined(CONFIG_LPC18XX_BOOTHEADER)
-/* The image contents go immediately after the 16-byte header */
-#define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	16
-#else
-#define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	0
+#define CONFIG_SPI_FLASH		1
+#define CONFIG_SPI_FLASH_SPANSION	1
+#define CONFIG_SPI_FLASH_BUS		0
+#define CONFIG_SPI_FLASH_CS		0
+#define CONFIG_SPI_FLASH_MODE		0
+#define CONFIG_SPI_FLASH_SPEED		(clock_get(CLOCK_SPI) / 8)
+#define CONFIG_SF_DEFAULT_SPEED		CONFIG_SPI_FLASH_SPEED
+#define CONFIG_SF_DEFAULT_MODE		CONFIG_SPI_FLASH_MODE
 #endif
+
+
 /*
  * Serial console configuration
  */
@@ -273,9 +313,9 @@
 /*
  * Ethernet configuration
  */
-//#define CONFIG_NET_MULTI
-//#define CONFIG_LPC18XX_ETH
-//#define CONFIG_LPC18XX_ETH_DIV_SEL	4	/* 150-250 MHz */
+#define CONFIG_NET_MULTI
+#define CONFIG_LPC18XX_ETH
+#define CONFIG_LPC18XX_ETH_DIV_SEL	4	/* 150-250 MHz */
 
 /*
  * Ethernet RX buffers are malloced from the internal SRAM (more precisely,
@@ -284,11 +324,9 @@
  * which determines the number of ethernet RX buffers (number of frames which
  * may be received without processing until overflow happens).
  */
-//#define CONFIG_SYS_RX_ETH_BUFFER	3
-//
-//#define CONFIG_SYS_TX_ETH_BUFFER	3
-//
-//
+#define CONFIG_SYS_RX_ETH_BUFFER	3
+#define CONFIG_SYS_TX_ETH_BUFFER	3
+
 /*
  * Console I/O buffer size
  */
@@ -325,25 +363,30 @@
  * Enable all those monitor commands that are needed
  */
 #include <config_cmd_default.h>
-#undef CONFIG_CMD_BOOTD
+#define CONFIG_CMD_EDITENV
 #define CONFIG_CMD_CONSOLE
+#define CONFIG_SYS_ALT_MEMTEST
+#define CONFIG_SYS_MEMTEST_SCRATCH 0x2000f000
+#ifdef CONFIG_LPC18XX_ETH
+#define CONFIG_CMD_NET	/* Obligatory for the Ethernet driver to build */
+#endif
+#ifdef CONFIG_SPI_FLASH
+#define CONFIG_CMD_SF
+#endif
+#undef CONFIG_CMD_BOOTD
 #undef CONFIG_CMD_DHCP
 #undef CONFIG_CMD_PING
 #undef CONFIG_CMD_ECHO
-#define CONFIG_CMD_EDITENV
 #undef CONFIG_CMD_FPGA
 #undef CONFIG_CMD_IMI
 #undef CONFIG_CMD_ITEST
 #undef CONFIG_CMD_IMLS
 #undef CONFIG_CMD_LOADS
 #undef CONFIG_CMD_MISC
-#undef CONFIG_CMD_NET	/* Obligatory for the Ethernet driver to build */
 #undef CONFIG_CMD_NFS
 #undef CONFIG_CMD_SOURCE
 #undef CONFIG_CMD_XIMG
 
-#define CONFIG_SYS_ALT_MEMTEST
-#define CONFIG_SYS_MEMTEST_SCRATCH 0x2000f000
 /*
  * To save memory disable long help
  */
@@ -359,9 +402,9 @@
  */
 #define CONFIG_BOOTDELAY		2
 #define CONFIG_ZERO_BOOTDELAY_CHECK
-#define CONFIG_HOSTNAME			lpc1850-eval
+#define CONFIG_HOSTNAME			mcb1800
 #define CONFIG_BOOTARGS			"lpc18xx_platform=hitex-lpc1850 " \
-					"console=ttyS0,115200 panic=20 earlyprintk=serial"
+					"console=ttyS0,115200 panic=10 earlyprintk=serial"
 #define CONFIG_BOOTCOMMAND		"run flashboot"
 
 /*
@@ -376,7 +419,7 @@
 	"loadaddr=0x28000000\0"					\
 	"addip=setenv bootargs ${bootargs}\0"			\
 	"flashaddr=14020000\0"					\
-	"flashboot=bootm ${flashaddr}\0"			\
+	"flashboot=bootm ${flashaddr}\0"		\
 	"image=lpc18xx/uImage\0"				\
 	"update=tftp ${image};"					\
 	"prot off ${flashaddr} +${filesize};"			\
