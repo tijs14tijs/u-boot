@@ -1,0 +1,18 @@
+#!/bin/sh
+# This was for loading .TEXT from 0x1C000000 (which is harder)
+# Split at 0x10000000 (.vectors and .text are at 0x20000000, rest is at 0x10000000)
+#split -b 268435456 $1 $1_split_
+# put .vectors and .text at 0x10000
+#truncate -s 65536 $1_split_aa
+#cat $1_split_ab >> $1_split_aa
+# save as u-boot.bin
+#mv $1_split_aa u-boot.mod.bin
+
+# Split at 0x10000000 (.text is at 0x20000000, rest is at 0x10000000)
+split -b 268435456 $1 $1_split_
+# put .text in second flashable binary
+truncate -s 65536 $1_split_aa
+mv $1_split_ab $1_0x1A000000.bin
+# save as u-boot.bin
+mv $1_split_aa u-boot.bin
+
