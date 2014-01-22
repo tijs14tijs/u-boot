@@ -26,28 +26,7 @@
  */
 
 #include <common.h>
-#ifdef CONFIG_LPC18XX_ETH
-#include <netdev.h>
-#endif
-#if defined(CONFIG_LPC_SPI)
-#include <spi.h>
-#endif
-/*
-#if defined(CONFIG_SPIFI)
-spifi.h is included by the cpu, but linker errors do occur.
-As a temporarily hack I patched the toolchain, here is the patch:
-diff gcc-arm-none-eabi-4_7-2013q3/lib/gcc/arm-none-eabi/4.7.4/include/stdint-gcc.h
 
-39c39
-< #if defined(__INT32_TYPE__) && !defined(__BIT_TYPES_DEFINED__)
----
-> #ifdef __INT32_TYPE__
-51c51
-< #if defined( __UINT32_TYPE__) && !defined(_LINUX_TYPES_H)
----
-> #ifdef __UINT32_TYPE__
-
-*/
 
 #include <asm/arch/lpc18xx_gpio.h>
 #include <asm/arch/lpc18xx_scu.h>
@@ -88,21 +67,21 @@ diff gcc-arm-none-eabi-4_7-2013q3/lib/gcc/arm-none-eabi/4.7.4/include/stdint-gcc
 /* Precharge command period (tRP) */
 #define SDRAM_T_RP		2	/* 18ns */
 /* Active to precharge command period (tRAS) */
-#define SDRAM_T_RAS		4	/* 42ns */
+#define SDRAM_T_RAS		5	/* 42ns */
 /* Self-refresh exit time (tSREX) */
-#define SDRAM_T_SREX    7	/* We set this to the same as tXSR, NOT IN DATASHEET */
+#define SDRAM_T_SREX    8	/* We set this to the same as tXSR, NOT IN DATASHEET */
 /* Last-data-out to active command time (tAPR) */
 #define SDRAM_T_APR		1	/* NOT IN DATASHEET */
 /* Data-in to active command (tDAL) */
-#define SDRAM_T_DAL		3	/* 30ns (=5*6.02ns) */
+#define SDRAM_T_DAL		4	/* 30ns (=5*6.02ns) */
 /* Write recovery time (tWR) */
 #define SDRAM_T_WR		2	/* (1 CLK + 6ns) */
 /* Active to active command period (tRC) */
-#define SDRAM_T_RC		6	/* 60ns */
+#define SDRAM_T_RC		7	/* 60ns */
 /* Auto-refresh period and auto-refresh to active command period (tRFC) */
-#define SDRAM_T_RFC		6	/* 60ns */
+#define SDRAM_T_RFC		7	/* 60ns */
 /* Exit self-refresh to active command time (tXSR) */
-#define SDRAM_T_XSR		7	/* 70ns */
+#define SDRAM_T_XSR		8	/* 70ns */
 /* Active bank A to active bank B latency (tRRD) */
 #define SDRAM_T_RRD		2	/* 12ns */
 /* Load mode register to active command time (tMRD) */
@@ -123,7 +102,7 @@ diff gcc-arm-none-eabi-4_7-2013q3/lib/gcc/arm-none-eabi/4.7.4/include/stdint-gcc
  *
  * 64000000[64ms] / 4096[rows] / (11.11[ns] * 16); round down = 87
  */
-#define SDRAM_REFRESH		87
+#define SDRAM_REFRESH		99
 /* Only for initialization */
 #define SDRAM_REFRESH_FAST	1
 
@@ -521,26 +500,6 @@ static const struct lpc18xx_pin_config mcb1800_iomux[] = {
 	{{0xA, 4}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 #endif /* CONFIG_SYS_FLASH_CS */
 
-#ifdef CONFIG_SPIFI
-	/*
-	 * Configuration for EMC pins used only for NOR flash
-	 */
-
-	/* P3.3 = SCK - SPIFI*/
-	{{0x3, 3}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P3.4 = IO3 - SPIFI*/
-	{{0x3, 4}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P3.5 = IO2 - SPIFI*/
-	{{0x3, 5}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P3.6 = IO1 - SPIFI*/
-	{{0x3, 6}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P3.7 = IO0 - SPIFI*/
-	{{0x3, 7}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P3.8 = CS - SPIFI*/
-	{{0x3, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-
-#endif /* CONFIG_SPIFI */
-
 #ifdef CONFIG_LPC18XX_GPIO
 	/*
 	 * Configuration for GPIO LEDs
@@ -593,196 +552,6 @@ static void iomux_init(void)
 	}
 }
 
-#ifdef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
-
-extern char _mem_nvm_base;
-extern char _mem_nvm_size;
-
-/*
- * OTP (One-Time Programmable) memory area map
- */
-struct lpc18xx_otp_area {
-	u32 part_id;		/* Part ID */
-	u32 rsv0;
-	u32 uniq_id;		/* Unique ID */
-	u32 rsv1;
-	u32 key0[4];		/* AES key 0 */
-	u32 key1[4];		/* AES key 1 */
-	u32 ctrl;		/* Customer control data */
-	u32 usb_id;		/* USB ID */
-	u32 user1;		/* General purpose OTP memory */
-	u32 user2;		/* General purpose OTP memory */
-};
-
-/*
- * OTP memory base
- */
-#define LPC18XX_OTP_BASE		0x40045000
-#define LPC18XX_OTP			((volatile struct lpc18xx_otp_area *) LPC18XX_OTP_BASE)
-
-/*
- * Customer control data
- */
-/* Boot source selection in OTP */
-#define LPC18XX_OTP_CTRL_BOOTSRC_BITS	25
-#define LPC18XX_OTP_CTRL_BOOTSRC_MSK	(0xF << LPC18XX_OTP_CTRL_BOOTSRC_BITS)
-
-
-/*
- * GPIO registers base
- */
-#define LPC18XX_GPIO_BASE		0x400F4000
-#define LPC18XX_GPIO			((volatile struct lpc18xx_gpio_regs *) \
-					LPC18XX_GPIO_BASE)
-#define LPC18XX_GPIO_B(port,pin)	(LPC18XX_GPIO->pbyte[32*(port) + (pin)])
-
-/*
- * Configuration of boot pins as GPIO inputs
- */
-static const struct lpc18xx_pin_config
-	__attribute__((section(".lpc18xx_image_top_data")))
-	diolan_lpc4350_iomux_boot_pins[] = {
-	/* P1.1 = GPIO0[8] - BOOT1 */
-	{{0x1, 1}, LPC18XX_IOMUX_GPIO_IN(0)},
-	/* P1.2 = GPIO0[9] - BOOT2 */
-	{{0x1, 2}, LPC18XX_IOMUX_GPIO_IN(0)},
-	/* P2.8 = GPIO5[7] - BOOT3 */
-	{{0x2, 8}, LPC18XX_IOMUX_GPIO_IN(4)},
-	/* P2.9 = GPIO1[10] - BOOT4 */
-	{{0x2, 9}, LPC18XX_IOMUX_GPIO_IN(0)},
-};
-
-/*
- * List of values returned by lpc18xx_get_boot_source()
- */
-#define LPC18XX_BOOTSRC_USART0		0
-#define LPC18XX_BOOTSRC_SPIFI		1
-#define LPC18XX_BOOTSRC_EMC_8BIT	2
-#define LPC18XX_BOOTSRC_EMC_16BIT	3
-#define LPC18XX_BOOTSRC_EMC_32BIT	4
-#define LPC18XX_BOOTSRC_USB0		5
-#define LPC18XX_BOOTSRC_USB1		6
-#define LPC18XX_BOOTSRC_SPI		7
-#define LPC18XX_BOOTSRC_USART3		8
-
-/*
- * Return identifier of the boot source used (from OTP or status of boot pins)
- */
-static int __attribute__((section(".lpc18xx_image_top_text")))
-	lpc18xx_get_boot_source(void)
-{
-	int rv;
-
-	/*
-	 * Try to find boot source selector in OTP
-	 */
-	rv = (LPC18XX_OTP->ctrl & LPC18XX_OTP_CTRL_BOOTSRC_MSK) >>
-		LPC18XX_OTP_CTRL_BOOTSRC_BITS;
-	if (rv > 0) {
-		return --rv;
-	}
-
-	/*
-	 * Check status of boot pins
-	 *
-	 * The pins need to be configured for GPIOs before reading their
-	 * statuses. The directions of GPIOs are set to inputs by default, no
-	 * need to reconfigure directions therefore.
-	 */
-	lpc18xx_pin_config_table(
-		diolan_lpc4350_iomux_boot_pins, 4);
-	return (LPC18XX_GPIO_B(0, 8) << 0) |
-	     (LPC18XX_GPIO_B(0, 9) << 1) |
-	     (LPC18XX_GPIO_B(5, 7) << 2) |
-	     (LPC18XX_GPIO_B(1, 10) << 3);
-}
-
-/*
- * Configure enough pins to access the first 128KBytes of the 16-bit NOR flash
- */
-static const struct lpc18xx_pin_config
-	__attribute__((section(".lpc18xx_image_top_data")))
-	diolan_lpc4350_iomux_boot_norflash[] = {
-	/*
-	 * Configure the EMC pins required to access the first 128KBytes
-	 * of NOR flash. The Boot ROM of LPC4350 forgets to configure these
-	 * pins.
-	 */
-	/* P6.8 = A14 */
-	{{0x6, 8}, LPC18XX_IOMUX_EMC_CONFIG(1)},
-	/* P6.7 = A15 */
-	{{0x6, 7}, LPC18XX_IOMUX_EMC_CONFIG(1)},
-	/* PD.16 = A16 */
-	{{0xD, 16}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-
-	/*
-	 * Reconfigure the boot pins, because we turned them into GPIO inputs
-	 */
-	/* P1.1 = A6 - SDRAM,NOR */
-	{{0x1, 1}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P1.2 = A7 - SDRAM,NOR */
-	{{0x1, 2}, LPC18XX_IOMUX_EMC_CONFIG(2)},
-	/* P2.8 = A8 - SDRAM,NOR */
-	{{0x2, 8}, LPC18XX_IOMUX_EMC_CONFIG(3)},
-	/* P2.9 = A0 - SDRAM */
-	{{0x2, 9}, LPC18XX_IOMUX_EMC_CONFIG(3)}
-};
-
-static void __attribute__((section(".lpc18xx_image_top_text")))
-	norflash_bootstrap_iomux_init(void)
-{
-	if(lpc18xx_pin_config_table(diolan_lpc4350_iomux_boot_norflash, 7)!=0)
-		while(1);
-}
-
-/*
- * This function will be called very early on U-Boot initialization to reload
- * the whole U-Boot image from NOR flash if we use bootloading from NOR flash.
- */
-void __attribute__((section(".lpc18xx_image_top_text")))
-	lpc18xx_bootstrap_from_norflash(void)
-{
-
-#if !defined( FIXED_SECTIONS_DIOLAN )	/* ie. boot from flash. see /cpu/arm_cortexm3/u-boot.lds */
-
-	char *src, *dest, *src_end;
-	/*
-	 * Check if we boot from NOR flash
-	 */
-
-	if (lpc18xx_get_boot_source() == LPC18XX_BOOTSRC_EMC_16BIT) {
-#endif
-		/*
-		 * Configure remaining pins required for NOR flash
-		 */
-		norflash_bootstrap_iomux_init();
-
-		/*
-		 * Copy U-Boot image from NOR flash to internal SRAM
-		 *
-		 * Originally, it was :
-		 * dest = &_mem_nvm_base;
-		 * It's ok when there is a header added to the image of U-Boot (see Makefile)
-		 * Indeed, the shadow pointer is set to 0x10000000 in this case (see User Manual §5.3.1 Boot process).
-		 *
-		 * Without header, we have to set manually the local SRAM address (0x10000000).
-		 * Instead, we prefer set 0x10000000 which is correct for all cases
-		 */
-#if !defined( FIXED_SECTIONS_DIOLAN )
-		/* FIXED_SECTIONS_DIOLAN ie. no shadowing in 0x00 but boot from flash 0x1C000000 see /cpu/arm_cortexm3/u-boot.lds */
-
-		 dest = CONFIG_LPC18xx_LOCAL_SRAM;
-		 src = (void *)(CONFIG_SYS_FLASH_BANK1_BASE +
-			CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET);
-		src_end = src + (u32)&_mem_nvm_size;
-		for (; src < src_end; src++, dest++)
-			*dest = *src;
-	 }
-#endif
-
-}
-#endif /* CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND */
-
 #define DELAYCYCLES(ns) (ns / ((1.0 / __EMCHZ) * 1E9))
 #define DELAYCYCLES_RAM(ns) (ns / ((1.0 / __EMCHZ_RAM) * 1E9))
 
@@ -830,10 +599,6 @@ int board_init(void)
 	st->ta = CONFIG_SYS_FLASH_TA;
 #endif
 
-#if defined(CONFIG_LPC_SPI)
-	spi_init();
-#endif
-
 	return 0;
 }
 
@@ -854,10 +619,6 @@ int checkboard(void)
 #ifdef CONFIG_MISC_INIT_R
 int misc_init_r(void)
 {
-#if defined(CONFIG_SPIFI)
-	printf("Initializing spifi...\n");
-	if (spifi_initialize()) return 1;
-#endif
 	return 0;
 }
 #endif /* CONFIG_MISC_INIT_R */
@@ -974,25 +735,26 @@ int dram_init(void)
 	return 0;
 }
 
+
 #ifdef CONFIG_LPC18XX_ETH
 /*
- * Register ethernet driver
- */
+* Register ethernet driver
+*/
 int board_eth_init(bd_t *bis)
 {
-	return lpc18xx_eth_driver_init(bis);
+        return lpc18xx_eth_driver_init(bis);
 }
 #endif
 
 #ifdef CONFIG_FLASH_CFI_LEGACY
 ulong board_flash_get_legacy (ulong base, int banknum, flash_info_t *info)
 {
-	if (banknum == 0) {	/* non-CFI flash */
-		info->portwidth = FLASH_CFI_16BIT;
-		info->chipwidth = FLASH_CFI_BY16;
-		info->interface = FLASH_CFI_X16;
-		return 1;
-	} else
-		return 0;
+        if (banknum == 0) {        /* non-CFI flash */
+                info->portwidth = FLASH_CFI_32BIT;
+                info->chipwidth = FLASH_CFI_BY32;
+                info->interface = FLASH_CFI_X8X16;
+                return 1;
+        } else
+                return 0;
 }
 #endif

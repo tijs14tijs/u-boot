@@ -327,6 +327,9 @@ endif
 ifeq ($(CONFIG_SYS_LPC18XX)$(CONFIG_SPIFI),yy)
 		dd if=cpu/arm_cortexm3/lpc18xx/spifilib/spifilib.bin of=u-boot.bin seek=112 bs=1024
 endif
+ifeq ($(CONFIG_LPC18X7),y)
+		$(obj)tools/lpc18x7_splitbin $(obj)u-boot.bin
+endif
 
 $(obj)u-boot.upgrade:	$(obj)u-boot.bin
 		split -b 32768 -a 1 -d u-boot.bin u-boot.bin-

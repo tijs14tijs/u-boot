@@ -45,7 +45,7 @@
  * Add header to the U-Boot image to pass necessary information
  * to the Boot ROM bootloader.
  */
-#define CONFIG_LPC18XX_BOOTHEADER
+#undef CONFIG_LPC18XX_BOOTHEADER
 
 /*
  * Enable GPIO driver
@@ -193,7 +193,7 @@
  * Support booting U-Boot from NOR flash
  */
 /* U-Boot will reload itself from flash to be sure the whole image is in SRAM */
-#define CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
+#undef CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND
 /* The image contents go immediately after the 16-byte header */
 #define CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET	16
 

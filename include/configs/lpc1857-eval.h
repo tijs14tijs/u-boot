@@ -47,6 +47,7 @@
  * to the Boot ROM bootloader.
  */
 #undef CONFIG_LPC18XX_BOOTHEADER
+#define CONFIG_LPC18X7
 
 /*
  * Enable GPIO driver
@@ -294,20 +295,20 @@
  * Enable all those monitor commands that are needed
  */
 #include <config_cmd_default.h>
-#define CONFIG_CMD_BOOTD
-#define CONFIG_CMD_CONSOLE
-#define CONFIG_CMD_ECHO
+#undef CONFIG_CMD_BOOTD
+#undef CONFIG_CMD_CONSOLE
+#undef CONFIG_CMD_ECHO
 #undef CONFIG_CMD_EDITENV
 #undef CONFIG_CMD_FPGA
 #undef CONFIG_CMD_IMI
 #undef CONFIG_CMD_ITEST
 #undef CONFIG_CMD_IMLS
-#define CONFIG_CMD_LOADS
-#define CONFIG_CMD_MISC
+#undef CONFIG_CMD_LOADS
+#undef CONFIG_CMD_MISC
 #undef CONFIG_CMD_NET	/* Obligatory for the Ethernet driver to build */
 #undef CONFIG_CMD_NFS
 #undef CONFIG_CMD_SOURCE
-#define CONFIG_CMD_XIMG
+#undef CONFIG_CMD_XIMG
 
 /*
  * To save memory disable long help
@@ -322,11 +323,12 @@
 /*
  * Auto-boot sequence configuration
  */
-#define CONFIG_BOOTDELAY		3
+#define CONFIG_BOOTDELAY		10
 #define CONFIG_ZERO_BOOTDELAY_CHECK
 #define CONFIG_HOSTNAME			lpc1850-eval
 #define CONFIG_BOOTARGS			"lpc18xx_platform=hitex-lpc1850 " \
-  "console=ttyS0,115200 panic=10"
+  "console=ttyS0,115200 panic=10"\
+  "user_debug=8"
 #define CONFIG_BOOTCOMMAND		"run flashboot"
 
 /*

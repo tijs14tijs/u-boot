@@ -428,6 +428,13 @@ static const struct lpc18xx_pin_config hitex_lpc4350_iomux[] = {
 	/* PE.3 = A21 - NOR */
 	{{0xE, 3}, LPC18XX_IOMUX_EMC_CONFIG(3)},
 #endif /* CONFIG_SYS_FLASH_CS */
+#ifdef CONFIG_LPC18XX_GPIO
+	{{0xE, 5}, LPC18XX_IOMUX_GPIO_IN(4)},
+	{{0xE, 6}, LPC18XX_IOMUX_GPIO_IN(4)},
+	{{0xE, 8}, LPC18XX_IOMUX_GPIO_IN(4)},
+#endif
+
+
 };
 
 /*
@@ -446,6 +453,8 @@ static void iomux_init(void)
 
 extern char _mem_nvm_base;
 extern char _mem_nvm_size;
+extern char _mem_nvm2_base;
+extern char _mem_nvm2_size;
 
 /*
  * OTP (One-Time Programmable) memory area map
@@ -603,12 +612,38 @@ void __attribute__((section(".lpc18xx_image_top_text")))
 		/*
 		 * Copy U-Boot image from NOR flash to internal SRAM
 		 */
+/*#define NVM2_BASE	0x10000000
+#define NVM2_LEN	(32*1024)
+
+#define NVM_BASE	0x20000000
+#define NVM_LEN		(64*1024)*/
+
+		/*
+		 * 0..._mem_nvm2_size -> NVM2 (everything else) 0x1C000000 -> 0x10000000 (rodata etc.)
+		 * 0x10000..._mem_nvm_size -> NVM (.vectors, .text)  0x1C010000 -> 0x20000000 (.text)
+		 * U-boot RAM will not be overwritten, because it is at 0x10080000
+		 */
+
+		dest = &_mem_nvm2_base;
+		src = (void *)(CONFIG_SYS_FLASH_BANK1_BASE + CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET);
+		src_end = src + (u32)&_mem_nvm2_size;
+		for (; src < src_end; src++, dest++)
+			*dest = *src;
+
 		dest = &_mem_nvm_base;
-		src = (void *)(CONFIG_SYS_FLASH_BANK1_BASE +
-			CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET);
+		src = (void *)(CONFIG_SYS_FLASH_BANK1_BASE + CONFIG_LPC18XX_NORFLASH_IMAGE_OFFSET + 0x10000);
 		src_end = src + (u32)&_mem_nvm_size;
 		for (; src < src_end; src++, dest++)
 			*dest = *src;
+
+		/* set stack pointer
+		 * $sp = 0x1008a000 */
+
+
+		/* Jump to U-boot text
+		 * $pc = 0x20000000 */
+		 ((void (*)(void))0x20000000)();
+
 	}
 }
 #endif /* CONFIG_LPC18XX_NORFLASH_BOOTSTRAP_WORKAROUND */
